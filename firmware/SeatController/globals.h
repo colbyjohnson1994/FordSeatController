@@ -9,21 +9,26 @@
 #define NUMPIXELS 1 
 
 // NTC definitions
-#define REFERENCE_RESISTANCE   10000
+#define REFERENCE_RESISTANCE   43000
 #define NOMINAL_RESISTANCE     10000
 #define NOMINAL_TEMPERATURE    25
 #define B_VALUE                3950
 
 // pwm definitions
-#define MAX_PWM 200
-#define MIN_PWM 10
+#define MAX_PWM 100
+#define MIN_PWM 0
+#define MAX_CYCLE 100
 
 // Seat control definitions
 #define READ_FREQ 100 // in ms
 #define CONTROL_FREQ 1000 // in milli seconds
+#define SOFTWARE_FREQ 500 // in ms
+#define BUTTON_FREQ 100 // in ms
 #define SMOOTHING_FACTOR 10 // moving average size
-#define PWM_FREQ 200 // in hertz
+#define PWM_FREQ 100.0 // in hertz
+#define PWM_INTERVAL (uint8_t)(1000.0 / PWM_FREQ)
 #define BTN_THRES 150 // in ADC ticks
+#define PID_THRES 5  // in degrees C, this difference triggers change in PID sensitivy
 
 // setpoints in deg C, 
 #define HEAT_OFF        0.0
@@ -33,9 +38,9 @@
 
 // setpoints in percent fan duty cycle
 #define FAN_OFF         0
-#define COOL_LEVEL_1_SP 25
+#define COOL_LEVEL_1_SP 35
 #define COOL_LEVEL_2_SP 65
-#define COOL_LEVEL_3_SP 100
+#define COOL_LEVEL_3_SP 90
 
 // Controller pin definitions
 // Analog Inputs
@@ -66,16 +71,31 @@ Adafruit_DotStar _DotStarLED(NUMPIXELS, DATAPIN, CLOCKPIN, DOTSTAR_BRG);
 // controller variables
 unsigned long _sensor_seconds = 0;
 unsigned long _control_seconds = 0;
+unsigned long _software_seconds = 0;
+unsigned long _button_seconds = 0;
+
+unsigned long _pwm_seconds = 0;
+unsigned long _pwm_count = 0;
 
 // PID variables
-float _KP = 1.0;
+double CSH_NTC_AVG;
+double BK_NTC_AVG;
+
+double CSH_TED_PWM_OUT = 0.0;
+double BK_TED_PWM_OUT = 0.0;
+
 uint8_t CSH_TED_PWM = 0;
-uint8_t CSH_BLOWR_PWM = 0;
 uint8_t BK_TED_PWM = 0;
+uint8_t CSH_BLOWR_PWM = 0;
 uint8_t BK_BLOWR_PWM = 0;
 
-float DESIRED_HEAT = HEAT_OFF;
-float DESIRED_COOL = FAN_OFF;
+double DESIRED_HEAT = HEAT_OFF;
+double DESIRED_COOL = FAN_OFF;
+
+double _aggKp = 15.0, _aggKi = 10.0, _aggKd = 0.0;
+PID cshPID(&CSH_NTC_AVG, &CSH_TED_PWM_OUT, &DESIRED_HEAT, _aggKp, _aggKi, _aggKd, DIRECT);
+PID bkPID(&BK_NTC_AVG, &BK_TED_PWM_OUT, &DESIRED_HEAT, _aggKp, _aggKi, _aggKd, DIRECT);
+
 
 // NTC Thermistor Variables
 Thermistor* CSH_Thermistor = new NTC_Thermistor(
@@ -101,8 +121,5 @@ Thermistor* BK_Smooth_Thermistor = new SmoothThermistor(BK_Thermistor, SMOOTHING
 // Button Variables
 ResponsiveAnalogRead HeatBtn(HEAT_SW_IN, false);
 ResponsiveAnalogRead CoolBtn(COOL_SW_IN, false);
-
-float CSH_NTC_AVG;
-float BK_NTC_AVG;
 
 #endif
