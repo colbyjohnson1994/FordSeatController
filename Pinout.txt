@@ -1,0 +1,22 @@
+Total I/O
+
+Inputs
+Heat SW - A0
+Cool SW - A1
+Cushion RTC - A2
+Seatback RTC - A3
+
+PWM Output
+Cushion Blower - 5
+Seatback Blower - 9
+Cushion TED - 10
+Seatback TED - 11
+
+Digital Output
+HEAT 1 LED - A4
+HEAT 2 LED - A5
+HEAT 3 LED - 7
+COOL 1 LED - 4
+COOL 2 LED - 2
+COOL 3 LED - 3
+Onboard LED - 13
