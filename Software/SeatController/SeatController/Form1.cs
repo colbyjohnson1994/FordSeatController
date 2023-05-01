@@ -219,6 +219,14 @@ namespace SeatController
         {
             if (commBox.SelectedIndex != -1) 
             {
+                // clear all chart data
+                cshSPSeries.Points.Clear();
+                cshTempSeries.Points.Clear();
+                bkSPSeries.Points.Clear();
+                bkTempSeries.Points.Clear();
+
+                startTime = DateTime.Now;
+
                 // attempt to connect to this port
                 if (controllerPort.IsOpen)
                     controllerPort.Close();
@@ -342,6 +350,7 @@ namespace SeatController
             readTimer.Enabled = false;
             _controllerConnected = false;
             controllerPort.Close();
+            refreshBtn_Click(sender, e);
         }
     }
 }

@@ -135,6 +135,7 @@
             // heatBox
             // 
             this.heatBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.heatBox.Enabled = false;
             this.heatBox.FormattingEnabled = true;
             this.heatBox.Items.AddRange(new object[] {
             "Heat Off",
@@ -158,6 +159,7 @@
             // coolBox
             // 
             this.coolBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.coolBox.Enabled = false;
             this.coolBox.FormattingEnabled = true;
             this.coolBox.Items.AddRange(new object[] {
             "Fan Off",
