@@ -10,12 +10,12 @@
 
 // NTC definitions
 #define REFERENCE_RESISTANCE   43000
-#define NOMINAL_RESISTANCE     10000
+#define NOMINAL_RESISTANCE     1000
 #define NOMINAL_TEMPERATURE    25
 #define B_VALUE                3950
 
 // pwm definitions
-#define MAX_PWM 90
+#define MAX_PWM 40
 #define MIN_PWM 0
 #define MAX_CYCLE 5
 
@@ -25,7 +25,7 @@
 #define SOFTWARE_FREQ 500 // in ms
 #define BUTTON_FREQ 100 // in ms
 #define SMOOTHING_FACTOR 10 // moving average size
-#define PWM_FREQ 1000.0 // in hertz
+#define PWM_FREQ 1.0 // in hertz
 #define PWM_INTERVAL (uint8_t)(1000.0 / PWM_FREQ)
 #define BTN_THRES 150 // in ADC ticks
 #define PID_THRES 5  // in degrees C, this difference triggers change in PID sensitivy
@@ -36,11 +36,18 @@
 #define HEAT_LEVEL_2_SP 55.0
 #define HEAT_LEVEL_3_SP 62.0
 
-// setpoints in percent fan duty cycle
-#define FAN_OFF         0
-#define COOL_LEVEL_1_SP 35
-#define COOL_LEVEL_2_SP 65
-#define COOL_LEVEL_3_SP 90
+#define COOL_LEVEL_1_SP 20.0
+#define COOL_LEVEL_2_SP 10.0
+#define COOL_LEVEL_3_SP 0.0
+
+#define FAN_OFF           0.0
+#define HEAT_LEVEL_1_FAN  100.0
+#define HEAT_LEVEL_2_FAN  100.0
+#define HEAT_LEVEL_3_FAN  100.0
+
+#define COOL_LEVEL_1_FAN  100.0
+#define COOL_LEVEL_2_FAN  100.0
+#define COOL_LEVEL_3_FAN  100.0
 
 // Controller pin definitions
 // Analog Inputs
@@ -63,6 +70,9 @@
 #define CSHTED_CTRL   10
 #define BKBLWR_CTRL   9
 #define BKTED_CTRL    11
+
+// Relay Outputs
+#define HEAT_COOL_RLY 12
 
 
 // dotstar led

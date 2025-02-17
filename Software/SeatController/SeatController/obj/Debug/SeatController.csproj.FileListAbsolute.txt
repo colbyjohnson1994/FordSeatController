@@ -20,3 +20,13 @@ C:\Users\LocalAdmin\OneDrive\Projects\2018 Ford Taurus Seat Controller\Software\
 C:\Users\LocalAdmin\OneDrive\Projects\2018 Ford Taurus Seat Controller\Software\SeatController\SeatController\obj\Debug\SeatController.csproj.CoreCompileInputs.cache
 C:\Users\LocalAdmin\OneDrive\Projects\2018 Ford Taurus Seat Controller\Software\SeatController\SeatController\obj\Debug\SeatController.exe
 C:\Users\LocalAdmin\OneDrive\Projects\2018 Ford Taurus Seat Controller\Software\SeatController\SeatController\obj\Debug\SeatController.pdb
+C:\Users\colby\OneDrive\Documents\GitHub\FordSeatController\Software\SeatController\SeatController\bin\Debug\SeatController.exe.config
+C:\Users\colby\OneDrive\Documents\GitHub\FordSeatController\Software\SeatController\SeatController\bin\Debug\SeatController.exe
+C:\Users\colby\OneDrive\Documents\GitHub\FordSeatController\Software\SeatController\SeatController\bin\Debug\SeatController.pdb
+C:\Users\colby\OneDrive\Documents\GitHub\FordSeatController\Software\SeatController\SeatController\obj\Debug\SeatController.csproj.AssemblyReference.cache
+C:\Users\colby\OneDrive\Documents\GitHub\FordSeatController\Software\SeatController\SeatController\obj\Debug\SeatController.Form1.resources
+C:\Users\colby\OneDrive\Documents\GitHub\FordSeatController\Software\SeatController\SeatController\obj\Debug\SeatController.Properties.Resources.resources
+C:\Users\colby\OneDrive\Documents\GitHub\FordSeatController\Software\SeatController\SeatController\obj\Debug\SeatController.csproj.GenerateResource.cache
+C:\Users\colby\OneDrive\Documents\GitHub\FordSeatController\Software\SeatController\SeatController\obj\Debug\SeatController.csproj.CoreCompileInputs.cache
+C:\Users\colby\OneDrive\Documents\GitHub\FordSeatController\Software\SeatController\SeatController\obj\Debug\SeatController.exe
+C:\Users\colby\OneDrive\Documents\GitHub\FordSeatController\Software\SeatController\SeatController\obj\Debug\SeatController.pdb

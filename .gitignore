@@ -1,0 +1,36 @@
+# Visual Studio C# project (Software/SeatController)
+Software/SeatController/*.user
+Software/SeatController/*.suo
+Software/SeatController/*.sln.docstates
+Software/SeatController/*.cache
+Software/SeatController/*.pidb
+Software/SeatController/*.userosscache
+Software/SeatController/*.sln
+Software/SeatController/*.csproj.user
+Software/SeatController/*.csproj.DotSettings.user
+Software/SeatController/bin/
+Software/SeatController/obj/
+Software/SeatController/[TestResults/
+Software/SeatController/[Debug/
+Software/SeatController/[Release/
+Software/SeatController/*.vs/
+Software/SeatController/.vs/
+Software/SeatController/.vscode/
+Software/SeatController/packages/
+Software/SeatController/*.dbmdl
+
+# Arduino-specific files (Firmware/FordSeatController)
+Firmware/FordSeatController/*.pde
+Firmware/FordSeatController/*.ino.eep
+Firmware/FordSeatController/*.hex
+
+# General
+.DS_Store
+Thumbs.db
+node_modules/
+*.bak
+*.orig
+*.rej
+*.swp
+*.swo
+*.log

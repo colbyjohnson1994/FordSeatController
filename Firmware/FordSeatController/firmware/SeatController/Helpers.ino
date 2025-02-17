@@ -16,6 +16,8 @@ void initializeDigitalOutputs() {
   pinMode(COOL2_LED, OUTPUT);
   pinMode(COOL3_LED, OUTPUT);
 
+  pinMode(HEAT_COOL_RLY, OUTPUT);
+
   // everything off
   digitalWrite(RED_LED, LOW);
   digitalWrite(HEAT1_LED, LOW);
@@ -24,6 +26,8 @@ void initializeDigitalOutputs() {
   digitalWrite(COOL1_LED, LOW);
   digitalWrite(COOL2_LED, LOW);
   digitalWrite(COOL3_LED, LOW);
+
+  digitalWrite(HEAT_COOL_RLY, LOW);
 }
 
 void initializeAnalogOutputs() {
@@ -103,18 +107,26 @@ void SetLEDOutputs() {
     digitalWrite(COOL1_LED, LOW);
     digitalWrite(COOL2_LED, LOW);
     digitalWrite(COOL3_LED, LOW);
+    CSH_BLOWR_PWM = FAN_OFF;
+    BK_BLOWR_PWM = FAN_OFF;
   } else if (DESIRED_COOL == COOL_LEVEL_1_SP) {
     // set cool 1 to be on
     digitalWrite(COOL1_LED, HIGH);
+    CSH_BLOWR_PWM = COOL_LEVEL_1_FAN;
+    BK_BLOWR_PWM = COOL_LEVEL_1_FAN;
   } else if (DESIRED_COOL == COOL_LEVEL_2_SP) {
     // set cool 1 and 2 to be on
     digitalWrite(COOL1_LED, HIGH);
     digitalWrite(COOL2_LED, HIGH);
+    CSH_BLOWR_PWM = COOL_LEVEL_2_FAN;
+    BK_BLOWR_PWM = COOL_LEVEL_2_FAN;
   } else if (DESIRED_COOL == COOL_LEVEL_3_SP) {
     // set cool 1, 2 and 3 to be on
     digitalWrite(COOL1_LED, HIGH);
     digitalWrite(COOL2_LED, HIGH);
     digitalWrite(COOL3_LED, HIGH);
+    CSH_BLOWR_PWM = COOL_LEVEL_3_FAN;
+    BK_BLOWR_PWM = COOL_LEVEL_3_FAN;
   }
 
   if (DESIRED_HEAT == HEAT_OFF) {
@@ -122,18 +134,26 @@ void SetLEDOutputs() {
     digitalWrite(HEAT1_LED, LOW);
     digitalWrite(HEAT2_LED, LOW);
     digitalWrite(HEAT3_LED, LOW);
+    CSH_BLOWR_PWM = FAN_OFF;
+    BK_BLOWR_PWM = FAN_OFF;
   } else if (DESIRED_HEAT == HEAT_LEVEL_1_SP) {
     // set HEAT 1 to be on
     digitalWrite(HEAT1_LED, HIGH);
+    CSH_BLOWR_PWM = HEAT_LEVEL_1_FAN;
+    BK_BLOWR_PWM = HEAT_LEVEL_1_FAN;
   } else if (DESIRED_HEAT == HEAT_LEVEL_2_SP) {
     // set HEAT 1 and 2 to be on
     digitalWrite(HEAT1_LED, HIGH);
     digitalWrite(HEAT2_LED, HIGH);
+    CSH_BLOWR_PWM = HEAT_LEVEL_2_FAN;
+    BK_BLOWR_PWM = HEAT_LEVEL_2_FAN;
   } else if (DESIRED_HEAT == HEAT_LEVEL_3_SP) {
     // set HEAT 1, 2 and 3 to be on
     digitalWrite(HEAT1_LED, HIGH);
     digitalWrite(HEAT2_LED, HIGH);
     digitalWrite(HEAT3_LED, HIGH);
+    CSH_BLOWR_PWM = HEAT_LEVEL_3_FAN;
+    BK_BLOWR_PWM = HEAT_LEVEL_3_FAN;
   }
 }
 
@@ -142,10 +162,7 @@ void AdjustPWMValues() {
   // relative to our measured temperatures for heat or state for cooling
   if (DESIRED_HEAT != HEAT_OFF) {
     // we are in a heat state
-
-    // set the fan to a constant
-    CSH_BLOWR_PWM = COOL_LEVEL_2_SP;
-    BK_BLOWR_PWM = COOL_LEVEL_2_SP;
+    digitalWrite(HEAT_COOL_RLY, LOW);
 
     cshPID.Compute();
     bkPID.Compute();
@@ -159,11 +176,13 @@ void AdjustPWMValues() {
     if (BK_TED_PWM > MAX_PWM)
       BK_TED_PWM = MAX_PWM;
   } else if (DESIRED_COOL != FAN_OFF) {
+    digitalWrite(HEAT_COOL_RLY, HIGH);
     // needs to be separate from heat so we can control the fan pwm separately
     CSH_BLOWR_PWM = DESIRED_COOL;
     BK_BLOWR_PWM = DESIRED_COOL;
   } else {
     // set everything to off
+    digitalWrite(HEAT_COOL_RLY, LOW);
     CSH_TED_PWM = 0;
     CSH_BLOWR_PWM = 0;
     BK_TED_PWM = 0;
@@ -172,6 +191,10 @@ void AdjustPWMValues() {
 }
 
 void UpdatePWMOutputs() {
+  // // temp disable TED
+  // CSH_TED_PWM = 0;
+  // BK_TED_PWM = 0;
+
   // cushion ted pwm
   if (_pwm_count < (CSH_TED_PWM / 20.0))
     digitalWrite(CSHTED_CTRL, HIGH);
