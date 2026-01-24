@@ -36,9 +36,9 @@
 #define HEAT_LEVEL_2_SP 55.0
 #define HEAT_LEVEL_3_SP 62.0
 
-#define COOL_LEVEL_1_SP 20.0
-#define COOL_LEVEL_2_SP 10.0
-#define COOL_LEVEL_3_SP 0.0
+#define COOL_LEVEL_1_SP 25.0
+#define COOL_LEVEL_2_SP 20.0
+#define COOL_LEVEL_3_SP 15.0
 
 #define FAN_OFF           0.0
 #define HEAT_LEVEL_1_FAN  40.0
@@ -107,14 +107,16 @@ uint8_t BK_BLOWR_PWM = 0;
 double DESIRED_HEAT = HEAT_OFF;
 double DESIRED_COOL = FAN_OFF;
 
+double SetPoint = 0.0;  // Shared setpoint for PID
+
 bool SHUTDOWN_HT_CUSH_ACTIVE = false;
 bool SHUTDOWN_HT_BACK_ACTIVE = false;
 bool SHUTDOWN_LT_CUSH_ACTIVE = false;
 bool SHUTDOWN_LT_BACK_ACTIVE = false;
 
 double _aggKp = 15.0, _aggKi = 10.0, _aggKd = 0.0;
-PID cshPID(&CSH_NTC_AVG, &CSH_TED_PWM_OUT, &DESIRED_HEAT, _aggKp, _aggKi, _aggKd, DIRECT);
-PID bkPID(&BK_NTC_AVG, &BK_TED_PWM_OUT, &DESIRED_HEAT, _aggKp, _aggKi, _aggKd, DIRECT);
+PID cshPID(&CSH_NTC_AVG, &CSH_TED_PWM_OUT, &SetPoint, _aggKp, _aggKi, _aggKd, DIRECT);
+PID bkPID(&BK_NTC_AVG, &BK_TED_PWM_OUT, &SetPoint, _aggKp, _aggKi, _aggKd, DIRECT);
 
 
 // NTC Thermistor Variables

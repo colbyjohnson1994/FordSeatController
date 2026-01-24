@@ -62,7 +62,7 @@ void CheckTemperatureLimits() {
   if (BK_NTC_AVG > SHUTDOWN_HT_OFF) {
     SHUTDOWN_HT_BACK_ACTIVE = true;
   } else {
-    if (SHUTDOWN_HT_CUSH_ACTIVE && BK_NTC_AVG < SHUTDOWN_HT_ON) {
+    if (SHUTDOWN_HT_BACK_ACTIVE && BK_NTC_AVG < SHUTDOWN_HT_ON) {
       SHUTDOWN_HT_BACK_ACTIVE = false;
     }
   }
@@ -118,16 +118,16 @@ void CheckButtons() {
       DESIRED_COOL = FAN_OFF;
 
       if (DESIRED_HEAT == HEAT_OFF)
-        // advance to cool stage 1
+        // advance to heat stage 1
         DESIRED_HEAT = HEAT_LEVEL_1_SP;
       else if (DESIRED_HEAT == HEAT_LEVEL_1_SP)
-        // advanced to cool stage 2
+        // advance to heat stage 2
         DESIRED_HEAT = HEAT_LEVEL_2_SP;
       else if (DESIRED_HEAT == HEAT_LEVEL_2_SP)
-        // advance to cool stage 3
+        // advance to heat stage 3
         DESIRED_HEAT = HEAT_LEVEL_3_SP;
       else if (DESIRED_HEAT == HEAT_LEVEL_3_SP)
-        // turn off cooling
+        // turn off heating
         DESIRED_HEAT = HEAT_OFF;
     }
   } else {
@@ -194,39 +194,55 @@ void SetLEDOutputs() {
 
 void AdjustPWMValues() {
   // based on what state our controller is in, adjust the pwm values
-  // relative to our measured temperatures for heat or state for cooling
+  // relative to our measured temperatures for heat or cool
   if (DESIRED_HEAT != HEAT_OFF) {
     // we are in a heat state
     digitalWrite(HEAT_COOL_RLY, LOW);
 
+    SetPoint = DESIRED_HEAT;
+    cshPID.SetControllerDirection(DIRECT);
+    bkPID.SetControllerDirection(DIRECT);
+
     cshPID.Compute();
     bkPID.Compute();
 
-    // values are referenced into floating point variables
+    // convert PID output (assuming 0-255) to 0-100%
     CSH_TED_PWM = (uint8_t)((CSH_TED_PWM_OUT / 255.0) * 100.0);
     BK_TED_PWM = (uint8_t)((BK_TED_PWM_OUT / 255.0) * 100.0);
 
-    if (CSH_TED_PWM > MAX_PWM)
-      CSH_TED_PWM = MAX_PWM;
-    if (BK_TED_PWM > MAX_PWM)
-      BK_TED_PWM = MAX_PWM;
+    if (CSH_TED_PWM > MAX_PWM) CSH_TED_PWM = MAX_PWM;
+    if (BK_TED_PWM > MAX_PWM) BK_TED_PWM = MAX_PWM;
 
-    if (SHUTDOWN_HT_CUSH_ACTIVE || SHUTDOWN_LT_CUSH_ACTIVE){
+    // apply shutdowns
+    if (SHUTDOWN_HT_CUSH_ACTIVE || SHUTDOWN_LT_CUSH_ACTIVE) {
       CSH_TED_PWM = 0;
     }
-    if (SHUTDOWN_HT_BACK_ACTIVE || SHUTDOWN_LT_BACK_ACTIVE){
+    if (SHUTDOWN_HT_BACK_ACTIVE || SHUTDOWN_LT_BACK_ACTIVE) {
       BK_TED_PWM = 0;
     }
   } else if (DESIRED_COOL != FAN_OFF) {
+    // we are in a cool state
     digitalWrite(HEAT_COOL_RLY, HIGH);
-    // needs to be separate from heat so we can control the fan pwm separately
-    CSH_BLOWR_PWM = DESIRED_COOL;
-    BK_BLOWR_PWM = DESIRED_COOL;
 
-    if (SHUTDOWN_HT_CUSH_ACTIVE || SHUTDOWN_LT_CUSH_ACTIVE){
+    SetPoint = DESIRED_COOL;
+    cshPID.SetControllerDirection(REVERSE);
+    bkPID.SetControllerDirection(REVERSE);
+
+    cshPID.Compute();
+    bkPID.Compute();
+
+    // convert PID output (assuming 0-255) to 0-100%
+    CSH_TED_PWM = (uint8_t)((CSH_TED_PWM_OUT / 255.0) * 100.0);
+    BK_TED_PWM = (uint8_t)((BK_TED_PWM_OUT / 255.0) * 100.0);
+
+    if (CSH_TED_PWM > MAX_PWM) CSH_TED_PWM = MAX_PWM;
+    if (BK_TED_PWM > MAX_PWM) BK_TED_PWM = MAX_PWM;
+
+    // apply shutdowns
+    if (SHUTDOWN_HT_CUSH_ACTIVE || SHUTDOWN_LT_CUSH_ACTIVE) {
       CSH_TED_PWM = 0;
     }
-    if (SHUTDOWN_HT_BACK_ACTIVE || SHUTDOWN_LT_BACK_ACTIVE){
+    if (SHUTDOWN_HT_BACK_ACTIVE || SHUTDOWN_LT_BACK_ACTIVE) {
       BK_TED_PWM = 0;
     }
   } else {
@@ -240,10 +256,6 @@ void AdjustPWMValues() {
 }
 
 void UpdatePWMOutputs() {
-  // // temp disable TED
-  // CSH_TED_PWM = 0;
-  // BK_TED_PWM = 0;
-
   // cushion ted pwm
   if (_pwm_count < (CSH_TED_PWM / 20.0))
     digitalWrite(CSHTED_CTRL, HIGH);
