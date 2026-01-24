@@ -31,9 +31,14 @@ void setup() {
   bkPID.SetMode(AUTOMATIC);
   cshFanPID.SetMode(AUTOMATIC);
   bkFanPID.SetMode(AUTOMATIC);
+
+  // Enable SAMD21 watchdog - 4 second timeout
+  wdt_init ( WDT_CONFIG_PER_1K );
 }
 
 void loop() {
+  wdt_reset ( );
+
   CoolBtn.update();
   HeatBtn.update();
 
@@ -69,7 +74,7 @@ void loop() {
 
   if ((millis() - _software_seconds) > SOFTWARE_FREQ) {
     _software_seconds = millis();
-    
+
     CheckSerialCommands();
     UpdateSoftware();
   }

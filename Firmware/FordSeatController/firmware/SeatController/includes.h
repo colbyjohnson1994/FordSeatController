@@ -7,6 +7,7 @@
 #include <SmoothThermistor.h>
 #include <Thermistor.h>
 #include <ResponsiveAnalogRead.h>
+#include <wdt_samd21.h>
 #include <PID_v1.h>
 #include "globals.h"
 

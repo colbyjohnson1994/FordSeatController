@@ -20,6 +20,13 @@
 #define MAX_CYCLE 5
 
 // Seat control definitions
+
+// Maximum runtime before dropping to level 1 (in milliseconds)
+// 60 minutes = 3,600,000 ms
+#define MAX_MODE_RUNTIME_MS   3600000UL
+// Time when current mode started
+unsigned long modeStartTime = 0;
+
 #define READ_FREQ 100 // in ms
 #define CONTROL_FREQ 1000 // in milli seconds
 #define SOFTWARE_FREQ 250 // in ms
@@ -47,19 +54,19 @@
 #define HEAT_L1_FAN_MAX   30.0   // low max for level 1 to avoid over-cooling
 
 #define HEAT_L2_FAN_MIN   30.0
-#define HEAT_L2_FAN_MAX   60.0
+#define HEAT_L2_FAN_MAX   50.0
 
 #define HEAT_L3_FAN_MIN   50.0
 #define HEAT_L3_FAN_MAX  100.0   // full range at max heat
 
 // Fan speed limits per cooling level (in %)
-#define COOL_L1_FAN_MIN   20.0
-#define COOL_L1_FAN_MAX   50.0   // moderate max for gentle cooling
+#define COOL_L1_FAN_MIN   10.0
+#define COOL_L1_FAN_MAX   30.0   // moderate max for gentle cooling
 
 #define COOL_L2_FAN_MIN   30.0
-#define COOL_L2_FAN_MAX   80.0
+#define COOL_L2_FAN_MAX   50.0
 
-#define COOL_L3_FAN_MIN   40.0
+#define COOL_L3_FAN_MIN   50.0
 #define COOL_L3_FAN_MAX  100.0   // max fan for aggressive cooling
 
 #define SHUTDOWN_HT_OFF   70.0
