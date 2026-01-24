@@ -23,7 +23,7 @@ void setup() {
   _pwm_seconds = millis();
 
   Serial.println("Controller Initialized");
-  Serial.println("Firmware Revision: 03.20.2023");
+  Serial.println("Firmware Revision: 01.23.2026");
   Serial.println("CJ Design and Build\r\n");
 
   //turn the PID on
