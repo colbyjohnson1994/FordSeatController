@@ -1,14 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Diagnostics;
 using System.Drawing;
 using System.IO.Ports;
-using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
 
@@ -17,19 +11,12 @@ namespace SeatController
     public partial class Form1 : Form
     {
         private const float _MAXPWM = 100.0f;
-        private const float _MINPWM = 0.0f;
-
-        private bool _controllerConnected = false;
-
-        private List<float> coolLookup = new List<float> { 0.0f, 35.0f, 65.0f, 90.0f };
-        private List<float> heatLookup = new List<float> { 0.0f, 47.0f, 55.0f, 62.0f };
+        private string currentMode = "OFF";
 
         private float desiredCool;
         private float desiredHeat;
-
         private float bkNtc;
         private float cshNtc;
-
         private float bkBlwrPerc;
         private float bkTedPerc;
         private float cshBlwrPerc;
@@ -38,9 +25,11 @@ namespace SeatController
         private ChartArea cshChartArea;
         private ChartArea bkChartArea;
 
-        private Series cshSPSeries = new Series();
+        private Series cshHeatSeries = new Series();
+        private Series cshCoolSeries = new Series();
+        private Series bkHeatSeries = new Series();
+        private Series bkCoolSeries = new Series();
         private Series cshTempSeries = new Series();
-        private Series bkSPSeries = new Series();
         private Series bkTempSeries = new Series();
 
         private bool bkShutdownHT = false;
@@ -49,7 +38,6 @@ namespace SeatController
         private bool cshShutdownLT = false;
 
         private long totalPacketsRcvd = 0;
-
         private DateTime startTime = DateTime.Now;
 
         public Form1()
@@ -59,52 +47,58 @@ namespace SeatController
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            // default the dropdowns
             unitsBox.SelectedIndex = 0;
-            heatBox.SelectedIndex = 0;
-            coolBox.SelectedIndex = 0;
-
-            // refresh ports
             refreshBtn_Click(sender, e);
 
-            // setup chart datas
+            // Setup charts
             SetupChart("Cushion Controller", ref cshChart, ref cshChartArea);
-            SetupSeries("Cushion Setpoint", ref cshSPSeries, cshChart);
+            SetupChart("Seat Back Controller", ref bkChart, ref bkChartArea);
+
+            // Setup series
+            SetupSeries("Cushion Heat Setpoint", ref cshHeatSeries, cshChart);
+            cshHeatSeries.Color = Color.OrangeRed;
+            SetupSeries("Cushion Cool Setpoint", ref cshCoolSeries, cshChart);
+            cshCoolSeries.Color = Color.DodgerBlue;
             SetupSeries("Cushion Temperature", ref cshTempSeries, cshChart);
 
-            cshChart.Series.Add(cshSPSeries);
-            cshChart.Series.Add(cshTempSeries);
-
-            SetupChart("Seat Back Controller", ref bkChart, ref bkChartArea);
-            SetupSeries("Seat Back Setpoint", ref bkSPSeries, bkChart);
+            SetupSeries("Seat Back Heat Setpoint", ref bkHeatSeries, bkChart);
+            bkHeatSeries.Color = Color.OrangeRed;
+            SetupSeries("Seat Back Cool Setpoint", ref bkCoolSeries, bkChart);
+            bkCoolSeries.Color = Color.DodgerBlue;
             SetupSeries("Seat Back Temperature", ref bkTempSeries, bkChart);
 
-            bkChart.Series.Add(bkSPSeries);
+            // Add series to charts
+            cshChart.Series.Add(cshHeatSeries);
+            cshChart.Series.Add(cshCoolSeries);
+            cshChart.Series.Add(cshTempSeries);
+
+            bkChart.Series.Add(bkHeatSeries);
+            bkChart.Series.Add(bkCoolSeries);
             bkChart.Series.Add(bkTempSeries);
+
+            ApplyDarkGridStyle(cshChart);
+            ApplyDarkGridStyle(bkChart);
+
+            cshChart.Invalidate();
+            bkChart.Invalidate();
         }
 
         private void readTimer_Tick(object sender, EventArgs e)
         {
-            // if the port closes, stop the timer
             if (!controllerPort.IsOpen)
             {
                 readTimer.Enabled = false;
-                _controllerConnected = false;
                 discoBtn.Enabled = false;
-
                 return;
             }
 
             discoBtn.Enabled = true;
 
-            // read a new line
             try
             {
                 while (controllerPort.BytesToRead > 0)
                 {
                     string line = controllerPort.ReadLine();
-
-                    // parse this line and display it
                     parseData(line);
                     updateDisplay();
                 }
@@ -117,37 +111,50 @@ namespace SeatController
 
         private void parseData(string data)
         {
-            string parser = "(\\S+)=(\\S*)";
+            string parser = @"(\S+)=(\S*)";
             Regex rx = new Regex(parser);
+            MatchCollection matches = rx.Matches(data);
 
-            // find matches
-            MatchCollection mathces = rx.Matches(data);
-            foreach (Match match in mathces) 
+            foreach (Match match in matches)
             {
                 string key = match.Groups[1].Value;
                 string val = match.Groups[2].Value;
+                Console.WriteLine($"{key}={val}");
 
-                Console.WriteLine(key + "=" + val);
-
-                // store the data
-                switch(key) 
+                switch (key)
                 {
+                    case "DESIRED_MODE":
+                        currentMode = val;  // e.g. "HEAT_2", "COOL_1", "OFF"
+                        break;
+
                     case "DESIRED_HEAT":
                         desiredHeat = float.Parse(val);
-                        cshSPSeries.Points.AddXY((DateTime.Now - startTime).TotalSeconds, desiredHeat);
-                        bkSPSeries.Points.AddXY((DateTime.Now - startTime).TotalSeconds, desiredHeat);
-
-                        // increment total packet count
+                        // Still plot if heat is active
+                        if (desiredHeat > 0)
+                        {
+                            double x = (DateTime.Now - startTime).TotalSeconds;
+                            cshHeatSeries.Points.AddXY(x, desiredHeat);
+                            bkHeatSeries.Points.AddXY(x, desiredHeat);
+                        }
                         totalPacketsRcvd += 1;
                         break;
+
                     case "DESIRED_COOL":
                         desiredCool = float.Parse(val);
+                        // Still plot if cool is active
+                        if (desiredCool > 0)
+                        {
+                            double x = (DateTime.Now - startTime).TotalSeconds;
+                            cshCoolSeries.Points.AddXY(x, desiredCool);
+                            bkCoolSeries.Points.AddXY(x, desiredCool);
+                        }
                         break;
 
                     case "CSH_NTC_AVG":
                         cshNtc = float.Parse(val);
                         cshTempSeries.Points.AddXY((DateTime.Now - startTime).TotalSeconds, cshNtc);
                         break;
+
                     case "BK_NTC_AVG":
                         bkNtc = float.Parse(val);
                         bkTempSeries.Points.AddXY((DateTime.Now - startTime).TotalSeconds, bkNtc);
@@ -156,24 +163,31 @@ namespace SeatController
                     case "CSH_BLOWR_PWM":
                         cshBlwrPerc = (float.Parse(val) / _MAXPWM) * 100.0f;
                         break;
+
                     case "CSH_TED_PWM":
-                        cshTedPerc = (float.Parse(val) / _MAXPWM) *100.0f;
+                        cshTedPerc = (float.Parse(val) / _MAXPWM) * 100.0f;
                         break;
+
                     case "BK_BLOWR_PWM":
-                        bkBlwrPerc = (float.Parse(val) / _MAXPWM) *100.0f;
+                        bkBlwrPerc = (float.Parse(val) / _MAXPWM) * 100.0f;
                         break;
+
                     case "BK_TED_PWM":
-                        bkTedPerc = (float.Parse(val) / _MAXPWM) *100.0f;
+                        bkTedPerc = (float.Parse(val) / _MAXPWM) * 100.0f;
                         break;
+
                     case "SHUTDOWN_HT_CUSH":
                         cshShutdownHT = Convert.ToBoolean(int.Parse(val));
                         break;
+
                     case "SHUTDOWN_HT_BACK":
                         bkShutdownHT = Convert.ToBoolean(int.Parse(val));
                         break;
+
                     case "SHUTDOWN_LT_CUSH":
                         cshShutdownLT = Convert.ToBoolean(int.Parse(val));
                         break;
+
                     case "SHUTDOWN_LT_BACK":
                         bkShutdownLT = Convert.ToBoolean(int.Parse(val));
                         break;
@@ -183,17 +197,11 @@ namespace SeatController
 
         private float toUnits(float data)
         {
-            if (unitsBox.Text == "C")
-                return data;
-            else
-                return (1.8f * data + 32);
+            return unitsBox.Text == "C" ? data : (1.8f * data + 32);
         }
 
         private void updateDisplay()
         {
-            coolBox.SelectedIndex = coolLookup.IndexOf(desiredCool);
-            heatBox.SelectedIndex = heatLookup.IndexOf(desiredHeat);
-
             cshTemp.Text = toUnits(cshNtc).ToString("n2") + " " + unitsBox.Text;
             bkTemp.Text = toUnits(bkNtc).ToString("n2") + " " + unitsBox.Text;
 
@@ -207,28 +215,21 @@ namespace SeatController
             cshBlowerPercent.Value = (int)cshBlwrPerc;
             bkBlwrPercent.Value = (int)bkBlwrPerc;
 
-            // update chart area min x axis
-            if (totalPacketsRcvd > graphWidth.Value)
-            {
-                long xminVal = (long)cshSPSeries.Points[cshSPSeries.Points.Count - 1 - (int)graphWidth.Value].XValue;
-                cshChartArea.AxisX.Minimum = xminVal;
-                //bkChartArea.AxisX.Minimum = = xminVal;
-            }
+            UpdateChartXAxisMinimum();
 
             bkDisableCB.Checked = bkShutdownHT || bkShutdownLT;
             cshDisableCB.Checked = cshShutdownLT || cshShutdownHT;
+
+            // Update mode indicators
+            UpdateModeIndicators();
         }
 
         private void refreshBtn_Click(object sender, EventArgs e)
         {
-            //clear box
             commBox.Items.Clear();
-
-            // get list of serial ports and add to the comm box drop down
             string[] ports = SerialPort.GetPortNames();
-            foreach (string port in ports) { commBox.Items.Add(port); }
+            commBox.Items.AddRange(ports);
 
-            // close connection
             if (controllerPort.IsOpen)
                 controllerPort.Close();
 
@@ -237,97 +238,97 @@ namespace SeatController
 
         private void commBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (commBox.SelectedIndex != -1) 
+            if (commBox.SelectedIndex == -1) return;
+
+            cshHeatSeries.Points.Clear();
+            cshCoolSeries.Points.Clear();
+            cshTempSeries.Points.Clear();
+            bkHeatSeries.Points.Clear();
+            bkCoolSeries.Points.Clear();
+            bkTempSeries.Points.Clear();
+            startTime = DateTime.Now;
+
+            if (controllerPort.IsOpen)
+                controllerPort.Close();
+
+            controllerPort.PortName = commBox.Text;
+            controllerPort.BaudRate = 115200;
+            controllerPort.ReadTimeout = 2000;
+            controllerPort.WriteTimeout = 2000;
+
+            try
             {
-                // clear all chart data
-                cshSPSeries.Points.Clear();
-                cshTempSeries.Points.Clear();
-                bkSPSeries.Points.Clear();
-                bkTempSeries.Points.Clear();
-
-                startTime = DateTime.Now;
-
-                // attempt to connect to this port
-                if (controllerPort.IsOpen)
-                    controllerPort.Close();
-
-                // start a new connection
-                controllerPort.PortName = commBox.Text;
-                controllerPort.BaudRate = 115200;
-                controllerPort.ReadTimeout = 2000;
-                controllerPort.WriteTimeout = 2000;
-
-                try
-                {
-                    controllerPort.Open();
-
-                    while (!controllerPort.IsOpen) { }
-
-                    readTimer.Enabled = true;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.ToString());
-                }
+                controllerPort.Open();
+                while (!controllerPort.IsOpen) { }
+                readTimer.Enabled = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
             }
         }
 
-        private void SetupSeries(String title, ref Series series, Chart chartArea)
+        private void SetupSeries(string title, ref Series series, Chart chart)
         {
-            //Series
-            series.ChartArea = chartArea.Name + "Area";
-            //Series style
+            series.ChartArea = chart.Name + "Area";
             series.Name = title.Replace(" ", "");
-            series.ChartType = SeriesChartType.Line;  // type
+            series.ChartType = SeriesChartType.Line;
             series.BorderWidth = 2;
-            series.Color = Color.Green;
-            series.XValueType = ChartValueType.Int32;//x axis type
-            series.YValueType = ChartValueType.Double;//y axis type
-
-            //Marker
-            //series.MarkerStyle = MarkerStyle.Star4;
-            //series.MarkerSize = 5;
-            //series.MarkerStep = 1;
-            //series.MarkerColor = Color.Red;
-            //series.ToolTip = @"ToolTip";
-
-            //Label
+            series.XValueType = ChartValueType.Int32;
+            series.YValueType = ChartValueType.Double;
             series.IsValueShownAsLabel = false;
             series.SmartLabelStyle.Enabled = false;
             series.SmartLabelStyle.AllowOutsidePlotArea = LabelOutsidePlotAreaStyle.Yes;
             series.LabelForeColor = Color.Gray;
-            series.LabelToolTip = @"LabelToolTip";
-
-            //Empty Point Style 
-            DataPointCustomProperties p = new DataPointCustomProperties();
-            p.Color = Color.Green;
-            series.EmptyPointStyle = p;
-
-            //Legend
             series.LegendText = title;
-            series.LegendToolTip = @"LegendToolTip";
         }
 
-        private void SetupChart(String title, ref Chart chart, ref ChartArea chartArea)
+        private void SetupChart(string title, ref Chart chart, ref ChartArea chartArea)
         {
-            // chartArea
             chartArea = new ChartArea();
             chartArea.Name = chart.Name + "Area";
             chart.ChartAreas.Add(chartArea);
-            chartArea.BackColor = Color.Azure;
-            chartArea.BackGradientStyle = GradientStyle.HorizontalCenter;
-            chartArea.BackHatchStyle = ChartHatchStyle.LargeGrid;
+
+            // Disable background hatch grid (prevents white lines)
+            chartArea.BackHatchStyle = ChartHatchStyle.None;
+
+            chartArea.BackColor = Color.FromArgb(30, 30, 30);
+            chart.BackColor = Color.FromArgb(30, 30, 30);
+            chart.ChartAreas[0].BackColor = Color.FromArgb(30, 30, 30);
+
+            // Dim gray dotted major grids
+            chartArea.AxisX.MajorGrid.Enabled = true;
+            chartArea.AxisX.MajorGrid.LineColor = Color.FromArgb(60, 60, 60);
+            chartArea.AxisX.MajorGrid.LineDashStyle = ChartDashStyle.Dot;
+            chartArea.AxisX.MajorGrid.LineWidth = 1;
+
+            chartArea.AxisY.MajorGrid.Enabled = true;
+            chartArea.AxisY.MajorGrid.LineColor = Color.FromArgb(60, 60, 60);
+            chartArea.AxisY.MajorGrid.LineDashStyle = ChartDashStyle.Dot;
+            chartArea.AxisY.MajorGrid.LineWidth = 1;
+
+            // Disable minor grids
+            chartArea.AxisX.MinorGrid.Enabled = false;
+            chartArea.AxisY.MinorGrid.Enabled = false;
+
+            // Prevent palette overrides
+            chart.Palette = ChartColorPalette.None;
+
             chartArea.BorderDashStyle = ChartDashStyle.Solid;
             chartArea.BorderWidth = 1;
-            chartArea.BorderColor = Color.Red;
-            chartArea.ShadowColor = Color.Purple;
+            chartArea.BorderColor = Color.Gray;
+            chartArea.ShadowColor = Color.Black;
             chartArea.ShadowOffset = 0;
-            chart.ChartAreas[0].Axes[0].MajorGrid.Enabled = false;//x axis
-            chart.ChartAreas[0].Axes[1].MajorGrid.Enabled = false;//y axis
 
-            //Cursor：only apply the top area
+            chartArea.AxisX.LineColor = Color.Gray;
+            chartArea.AxisY.LineColor = Color.Gray;
+            chartArea.AxisX.LabelStyle.ForeColor = Color.LightGray;
+            chartArea.AxisY.LabelStyle.ForeColor = Color.LightGray;
+            chartArea.AxisX.TitleForeColor = Color.LightGray;
+            chartArea.AxisY.TitleForeColor = Color.LightGray;
+
             chartArea.CursorX.IsUserEnabled = true;
-            chartArea.CursorX.AxisType = AxisType.Primary;//act on primary x axis
+            chartArea.CursorX.AxisType = AxisType.Primary;
             chartArea.CursorX.Interval = 1;
             chartArea.CursorX.LineWidth = 1;
             chartArea.CursorX.LineDashStyle = ChartDashStyle.Dash;
@@ -336,7 +337,7 @@ namespace SeatController
             chartArea.CursorX.AutoScroll = true;
 
             chartArea.CursorY.IsUserEnabled = true;
-            chartArea.CursorY.AxisType = AxisType.Primary;//act on primary y axis
+            chartArea.CursorY.AxisType = AxisType.Primary;
             chartArea.CursorY.Interval = 1;
             chartArea.CursorY.LineWidth = 1;
             chartArea.CursorY.LineDashStyle = ChartDashStyle.Dash;
@@ -344,33 +345,124 @@ namespace SeatController
             chartArea.CursorY.SelectionColor = Color.Yellow;
             chartArea.CursorY.AutoScroll = true;
 
-            // Axis
-            chartArea.AxisY.Minimum = -10d;//Y axis Minimum value
-            chartArea.AxisY.Title = @"Temperature °C";
-            //chartArea.AxisY.Maximum = 100d;//Y axis Maximum value
-            chartArea.AxisX.Minimum = 0d; //X axis Minimum value
+            chartArea.AxisY.Minimum = -10d;
+            chartArea.AxisY.Title = "Temperature °C";
+            chartArea.AxisX.Minimum = 0d;
             chartArea.AxisX.IsLabelAutoFit = true;
             chartArea.AxisX.LabelAutoFitMinFontSize = 5;
             chartArea.AxisX.LabelStyle.Angle = -20;
-            chartArea.AxisX.LabelStyle.IsEndLabelVisible = true;//show the last label
+            chartArea.AxisX.LabelStyle.IsEndLabelVisible = true;
             chartArea.AxisX.Interval = 1;
             chartArea.AxisX.IntervalAutoMode = IntervalAutoMode.FixedCount;
             chartArea.AxisX.IntervalType = DateTimeIntervalType.NotSet;
-            chartArea.AxisX.Title = @"Time";
+            chartArea.AxisX.Title = "Time";
             chartArea.AxisX.TextOrientation = TextOrientation.Auto;
             chartArea.AxisX.LineWidth = 2;
-            chartArea.AxisX.LineColor = Color.DarkOrchid;
+            chartArea.AxisX.LineColor = Color.Gray;
             chartArea.AxisX.Enabled = AxisEnabled.True;
             chartArea.AxisX.ScrollBar = new AxisScrollBar();
         }
 
+        private void btnHeatOff_Click(object sender, EventArgs e) => SendCommand("HEAT:0");
+        private void btnHeat1_Click(object sender, EventArgs e) => SendCommand("HEAT:1");
+        private void btnHeat2_Click(object sender, EventArgs e) => SendCommand("HEAT:2");
+        private void btnHeat3_Click(object sender, EventArgs e) => SendCommand("HEAT:3");
+
+        private void btnCoolOff_Click(object sender, EventArgs e) => SendCommand("COOL:0");
+        private void btnCool1_Click(object sender, EventArgs e) => SendCommand("COOL:1");
+        private void btnCool2_Click(object sender, EventArgs e) => SendCommand("COOL:2");
+        private void btnCool3_Click(object sender, EventArgs e) => SendCommand("COOL:3");
+
+        private void SendCommand(string cmd)
+        {
+            if (controllerPort.IsOpen)
+                controllerPort.WriteLine(cmd);
+        }
+
         private void discoBtn_Click(object sender, EventArgs e)
         {
-            discoBtn.Enabled = false;
-            readTimer.Enabled = false;
-            _controllerConnected = false;
             controllerPort.Close();
-            refreshBtn_Click(sender, e);
+            readTimer.Enabled = false;
+            refreshBtn.Enabled = true;
+            discoBtn.Enabled = false;
+            commBox.Items.Clear();
+            commBox.Text = "";
+        }
+
+        private float? GetActiveSetpoint()
+        {
+            if (desiredHeat > 0) return desiredHeat;
+            if (desiredCool > 0) return desiredCool;
+            return null;
+        }
+
+        private void UpdateChartXAxisMinimum()
+        {
+            int pointsCount = cshTempSeries.Points.Count; // Use temperature series (always plotted)
+            if (pointsCount == 0) return;
+
+            int lookback = (int)graphWidth.Value;
+            if (pointsCount > lookback)
+            {
+                int index = pointsCount - 1 - lookback;
+                if (index >= 0)
+                {
+                    double minX = cshTempSeries.Points[index].XValue;
+                    cshChartArea.AxisX.Minimum = minX;
+                    bkChartArea.AxisX.Minimum = minX;
+                }
+            }
+            else
+            {
+                cshChartArea.AxisX.Minimum = 0;
+                bkChartArea.AxisX.Minimum = 0;
+            }
+        }
+
+        private void ApplyDarkGridStyle(Chart chart)
+        {
+            chart.Palette = ChartColorPalette.None;
+        }
+
+        private void UpdateModeIndicators()
+        {
+            // Default: both off
+            heatLED.BackColor = Color.DarkGray;
+            coolLED.BackColor = Color.DarkGray;
+
+            heatStatusLabel.Text = "Heat: Off";
+            coolStatusLabel.Text = "Cool: Off";
+
+            if (currentMode.StartsWith("HEAT_"))
+            {
+                // Heat is active
+                heatLED.BackColor = Color.OrangeRed;  // or Color.Red, your choice
+                int level = int.Parse(currentMode.Substring(5)); // "HEAT_1" → 1
+                heatStatusLabel.Text = $"Heat: {level}";
+
+                // Cool is off
+                coolLED.BackColor = Color.DarkGray;
+                coolStatusLabel.Text = "Cool: Off";
+            }
+            else if (currentMode.StartsWith("COOL_"))
+            {
+                // Cool is active
+                coolLED.BackColor = Color.DodgerBlue;
+                int level = int.Parse(currentMode.Substring(5)); // "COOL_1" → 1
+                coolStatusLabel.Text = $"Cool: {level}";
+
+                // Heat is off
+                heatLED.BackColor = Color.DarkGray;
+                heatStatusLabel.Text = "Heat: Off";
+            }
+            else // "OFF"
+            {
+                // Both off
+                heatLED.BackColor = Color.DarkGray;
+                coolLED.BackColor = Color.DarkGray;
+                heatStatusLabel.Text = "Heat: Off";
+                coolStatusLabel.Text = "Cool: Off";
+            }
         }
     }
 }

@@ -29,6 +29,8 @@ void setup() {
   //turn the PID on
   cshPID.SetMode(AUTOMATIC);
   bkPID.SetMode(AUTOMATIC);
+  cshFanPID.SetMode(AUTOMATIC);
+  bkFanPID.SetMode(AUTOMATIC);
 }
 
 void loop() {
@@ -67,7 +69,8 @@ void loop() {
 
   if ((millis() - _software_seconds) > SOFTWARE_FREQ) {
     _software_seconds = millis();
-
+    
+    CheckSerialCommands();
     UpdateSoftware();
   }
 }

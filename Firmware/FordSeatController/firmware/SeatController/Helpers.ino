@@ -171,11 +171,23 @@ void SetLEDOutputs() {
 
 void AdjustPWMValues() {
   if (DESIRED_HEAT != HEAT_OFF) {
-    // Heat mode
     digitalWrite(HEAT_COOL_RLY, LOW);
 
-    SetPoint = DESIRED_HEAT;                   // TED setpoint
-    FanSetPoint = DESIRED_HEAT + FAN_BIAS_OFFSET;  // Fan setpoint (bias higher → more fan when close)
+    SetPoint = DESIRED_HEAT;  // TED setpoint
+
+    // Calculate inverted temperature for fan PID
+    // (higher actual temp → higher inverted value → PID sees "closer to target")
+    double CSH_Inverted_Temp = 100.0 - CSH_NTC_AVG;  // 100 is arbitrary (higher than any possible temp)
+    double BK_Inverted_Temp = 100.0 - BK_NTC_AVG;
+
+    // Adjustable bias per level
+    float heatBias = FAN_BIAS_OFFSET;
+    if (DESIRED_HEAT == HEAT_LEVEL_1_SP) heatBias = HEAT_BIAS_L1;
+    else if (DESIRED_HEAT == HEAT_LEVEL_2_SP) heatBias = HEAT_BIAS_L2;
+    else if (DESIRED_HEAT == HEAT_LEVEL_3_SP) heatBias = HEAT_BIAS_L3;
+
+    // FanSetPoint should be higher than inverted temps when close to setpoint
+    FanSetPoint = 100.0 - (DESIRED_HEAT - heatBias);
 
     // TED PID - DIRECT
     cshPID.SetControllerDirection(DIRECT);
@@ -184,73 +196,117 @@ void AdjustPWMValues() {
     bkPID.Compute();
 
     CSH_TED_PWM = (uint8_t)((CSH_TED_PWM_OUT / 255.0) * 100.0);
-    BK_TED_PWM  = (uint8_t)((BK_TED_PWM_OUT  / 255.0) * 100.0);
+    BK_TED_PWM = (uint8_t)((BK_TED_PWM_OUT / 255.0) * 100.0);
     if (CSH_TED_PWM > MAX_PWM) CSH_TED_PWM = MAX_PWM;
-    if (BK_TED_PWM  > MAX_PWM) BK_TED_PWM  = MAX_PWM;
+    if (BK_TED_PWM > MAX_PWM) BK_TED_PWM = MAX_PWM;
 
-    // Fan PID - REVERSE (lower fan when far from setpoint → max TEC heating effect)
-    cshFanPID.SetControllerDirection(REVERSE);
-    bkFanPID.SetControllerDirection(REVERSE);
+    // Fan PID - DIRECT, using inverted temp
+    cshFanPID.SetControllerDirection(DIRECT);
+    bkFanPID.SetControllerDirection(DIRECT);
+
+    // Feed inverted temperature to fan PID inputs
+    CSH_Fan_PID_Input = CSH_Inverted_Temp;
+    BK_Fan_PID_Input = BK_Inverted_Temp;
+
     cshFanPID.Compute();
     bkFanPID.Compute();
 
     CSH_FAN_PWM = (uint8_t)((CSH_FAN_PWM_OUT / 255.0) * 100.0);
-    BK_FAN_PWM  = (uint8_t)((BK_FAN_PWM_OUT  / 255.0) * 100.0);
+    BK_FAN_PWM = (uint8_t)((BK_FAN_PWM_OUT / 255.0) * 100.0);
 
-    // Enforce minimum fan PWM and cap at 100%
-    if (CSH_FAN_PWM < FAN_MIN_HEAT) CSH_FAN_PWM = FAN_MIN_HEAT;
-    if (BK_FAN_PWM  < FAN_MIN_HEAT) BK_FAN_PWM  = FAN_MIN_HEAT;
-    if (CSH_FAN_PWM > 100) CSH_FAN_PWM = 100;
-    if (BK_FAN_PWM  > 100) BK_FAN_PWM  = 100;
+    // Enforce per-level fan speed limits
+    float fanMinHeat = FAN_MIN_HEAT;  // fallback
+    float fanMaxHeat = 100.0;
+
+    if (DESIRED_HEAT == HEAT_LEVEL_1_SP) {
+      fanMinHeat = HEAT_L1_FAN_MIN;
+      fanMaxHeat = HEAT_L1_FAN_MAX;
+    } else if (DESIRED_HEAT == HEAT_LEVEL_2_SP) {
+      fanMinHeat = HEAT_L2_FAN_MIN;
+      fanMaxHeat = HEAT_L2_FAN_MAX;
+    } else if (DESIRED_HEAT == HEAT_LEVEL_3_SP) {
+      fanMinHeat = HEAT_L3_FAN_MIN;
+      fanMaxHeat = HEAT_L3_FAN_MAX;
+    }
+
+    if (CSH_FAN_PWM < fanMinHeat) CSH_FAN_PWM = (uint8_t)fanMinHeat;
+    if (BK_FAN_PWM < fanMinHeat) BK_FAN_PWM = (uint8_t)fanMinHeat;
+    if (CSH_FAN_PWM > fanMaxHeat) CSH_FAN_PWM = (uint8_t)fanMaxHeat;
+    if (BK_FAN_PWM > fanMaxHeat) BK_FAN_PWM = (uint8_t)fanMaxHeat;
 
     // Shutdowns
     if (SHUTDOWN_HT_CUSH_ACTIVE || SHUTDOWN_LT_CUSH_ACTIVE) CSH_TED_PWM = 0;
-    if (SHUTDOWN_HT_BACK_ACTIVE || SHUTDOWN_LT_BACK_ACTIVE) BK_TED_PWM  = 0;
-
+    if (SHUTDOWN_HT_BACK_ACTIVE || SHUTDOWN_LT_BACK_ACTIVE) BK_TED_PWM = 0;
   } else if (DESIRED_COOL != FAN_OFF) {
     // Cool mode
     digitalWrite(HEAT_COOL_RLY, HIGH);
 
-    SetPoint = DESIRED_COOL;                   // TED setpoint
-    FanSetPoint = DESIRED_COOL - FAN_BIAS_OFFSET;  // Fan setpoint (bias lower → more fan when close)
+    SetPoint = DESIRED_COOL;  // TED setpoint
 
-    // TED PID - REVERSE
+    // Adjustable bias per cooling level
+    float coolBias = FAN_BIAS_OFFSET;
+    if (DESIRED_COOL == COOL_LEVEL_1_SP) coolBias = COOL_BIAS_L1;
+    else if (DESIRED_COOL == COOL_LEVEL_2_SP) coolBias = COOL_BIAS_L2;
+    else if (DESIRED_COOL == COOL_LEVEL_3_SP) coolBias = COOL_BIAS_L3;
+
+    // Fan setpoint: bias LOWER than desired cool temp → more fan when far above setpoint
+    FanSetPoint = DESIRED_COOL - coolBias;
+
+    // TED PID - REVERSE (decrease power when too hot)
     cshPID.SetControllerDirection(REVERSE);
     bkPID.SetControllerDirection(REVERSE);
     cshPID.Compute();
     bkPID.Compute();
 
     CSH_TED_PWM = (uint8_t)((CSH_TED_PWM_OUT / 255.0) * 100.0);
-    BK_TED_PWM  = (uint8_t)((BK_TED_PWM_OUT  / 255.0) * 100.0);
+    BK_TED_PWM = (uint8_t)((BK_TED_PWM_OUT / 255.0) * 100.0);
     if (CSH_TED_PWM > MAX_PWM) CSH_TED_PWM = MAX_PWM;
-    if (BK_TED_PWM  > MAX_PWM) BK_TED_PWM  = MAX_PWM;
+    if (BK_TED_PWM > MAX_PWM) BK_TED_PWM = MAX_PWM;
 
-    // Fan PID - REVERSE (lower fan when far from setpoint → max TEC cooling effect)
+    // Fan PID - REVERSE (increase fan when actual temp > FanSetPoint, i.e., hotter)
     cshFanPID.SetControllerDirection(REVERSE);
     bkFanPID.SetControllerDirection(REVERSE);
+
+    // Feed actual temperature to fan PID inputs
+    CSH_Fan_PID_Input = CSH_NTC_AVG;
+    BK_Fan_PID_Input = BK_NTC_AVG;
+
     cshFanPID.Compute();
     bkFanPID.Compute();
 
     CSH_FAN_PWM = (uint8_t)((CSH_FAN_PWM_OUT / 255.0) * 100.0);
-    BK_FAN_PWM  = (uint8_t)((BK_FAN_PWM_OUT  / 255.0) * 100.0);
+    BK_FAN_PWM = (uint8_t)((BK_FAN_PWM_OUT / 255.0) * 100.0);
 
-    // Enforce minimum fan PWM and cap at 100%
-    if (CSH_FAN_PWM < FAN_MIN_COOL) CSH_FAN_PWM = FAN_MIN_COOL;
-    if (BK_FAN_PWM  < FAN_MIN_COOL) BK_FAN_PWM  = FAN_MIN_COOL;
-    if (CSH_FAN_PWM > 100) CSH_FAN_PWM = 100;
-    if (BK_FAN_PWM  > 100) BK_FAN_PWM  = 100;
+    // Enforce per-level fan speed limits for cooling
+    float fanMinCool = FAN_MIN_COOL;
+    float fanMaxCool = 100.0;
+
+    if (DESIRED_COOL == COOL_LEVEL_1_SP) {
+      fanMinCool = COOL_L1_FAN_MIN;
+      fanMaxCool = COOL_L1_FAN_MAX;
+    } else if (DESIRED_COOL == COOL_LEVEL_2_SP) {
+      fanMinCool = COOL_L2_FAN_MIN;
+      fanMaxCool = COOL_L2_FAN_MAX;
+    } else if (DESIRED_COOL == COOL_LEVEL_3_SP) {
+      fanMinCool = COOL_L3_FAN_MIN;
+      fanMaxCool = COOL_L3_FAN_MAX;
+    }
+
+    if (CSH_FAN_PWM < fanMinCool) CSH_FAN_PWM = (uint8_t)fanMinCool;
+    if (BK_FAN_PWM < fanMinCool) BK_FAN_PWM = (uint8_t)fanMinCool;
+    if (CSH_FAN_PWM > fanMaxCool) CSH_FAN_PWM = (uint8_t)fanMaxCool;
+    if (BK_FAN_PWM > fanMaxCool) BK_FAN_PWM = (uint8_t)fanMaxCool;
 
     // Shutdowns
     if (SHUTDOWN_HT_CUSH_ACTIVE || SHUTDOWN_LT_CUSH_ACTIVE) CSH_TED_PWM = 0;
-    if (SHUTDOWN_HT_BACK_ACTIVE || SHUTDOWN_LT_BACK_ACTIVE) BK_TED_PWM  = 0;
-
+    if (SHUTDOWN_HT_BACK_ACTIVE || SHUTDOWN_LT_BACK_ACTIVE) BK_TED_PWM = 0;
   } else {
     // Off
     digitalWrite(HEAT_COOL_RLY, LOW);
     CSH_TED_PWM = 0;
-    BK_TED_PWM  = 0;
+    BK_TED_PWM = 0;
     CSH_FAN_PWM = 0;
-    BK_FAN_PWM  = 0;
+    BK_FAN_PWM = 0;
   }
 }
 
@@ -286,21 +342,66 @@ void UpdatePWMOutputs() {
 }
 
 void UpdateSoftware() {
-  // switch inputs
-  Serial.println("DESIRED_HEAT=" + String(DESIRED_HEAT));
-  Serial.println("DESIRED_COOL=" + String(DESIRED_COOL));
+#define PRINT_KEY_VALUE(key, value) Serial.println(String(key) + "=" + String(value))
 
-  // adc inputs
-  Serial.println("CSH_NTC_AVG=" + String(CSH_NTC_AVG));
-  Serial.println("BK_NTC_AVG=" + String(BK_NTC_AVG));
+  // Determine current mode
+  String mode = "OFF";
+  if (DESIRED_HEAT != HEAT_OFF) {
+    if (DESIRED_HEAT == HEAT_LEVEL_1_SP) mode = "HEAT_1";
+    else if (DESIRED_HEAT == HEAT_LEVEL_2_SP) mode = "HEAT_2";
+    else if (DESIRED_HEAT == HEAT_LEVEL_3_SP) mode = "HEAT_3";
+  } else if (DESIRED_COOL != FAN_OFF) {
+    if (DESIRED_COOL == COOL_LEVEL_1_SP) mode = "COOL_1";
+    else if (DESIRED_COOL == COOL_LEVEL_2_SP) mode = "COOL_2";
+    else if (DESIRED_COOL == COOL_LEVEL_3_SP) mode = "COOL_3";
+  }
 
-  // system variables
-  Serial.println("CSH_BLOWR_PWM=" + String(CSH_FAN_PWM));
-  Serial.println("CSH_TED_PWM=" + String(CSH_TED_PWM));
-  Serial.println("BK_BLOWR_PWM=" + String(BK_FAN_PWM));
-  Serial.println("BK_TED_PWM=" + String(BK_TED_PWM));
-  Serial.println("SHUTDOWN_HT_CUSH=" + String(SHUTDOWN_HT_CUSH_ACTIVE));
-  Serial.println("SHUTDOWN_HT_BACK=" + String(SHUTDOWN_HT_BACK_ACTIVE));
-  Serial.println("SHUTDOWN_LT_CUSH=" + String(SHUTDOWN_LT_CUSH_ACTIVE));
-  Serial.println("SHUTDOWN_LT_BACK=" + String(SHUTDOWN_LT_BACK_ACTIVE));
+  PRINT_KEY_VALUE("DESIRED_MODE", mode);
+
+  // Also send the actual temperature setpoints (for charting)
+  PRINT_KEY_VALUE("DESIRED_HEAT", DESIRED_HEAT);
+  PRINT_KEY_VALUE("DESIRED_COOL", DESIRED_COOL);
+
+  // Rest unchanged
+  PRINT_KEY_VALUE("CSH_NTC_AVG", CSH_NTC_AVG);
+  PRINT_KEY_VALUE("BK_NTC_AVG", BK_NTC_AVG);
+
+  PRINT_KEY_VALUE("CSH_BLOWR_PWM", CSH_FAN_PWM);
+  PRINT_KEY_VALUE("CSH_TED_PWM", CSH_TED_PWM);
+  PRINT_KEY_VALUE("BK_BLOWR_PWM", BK_FAN_PWM);
+  PRINT_KEY_VALUE("BK_TED_PWM", BK_TED_PWM);
+
+  PRINT_KEY_VALUE("SHUTDOWN_HT_CUSH", SHUTDOWN_HT_CUSH_ACTIVE ? 1 : 0);
+  PRINT_KEY_VALUE("SHUTDOWN_HT_BACK", SHUTDOWN_HT_BACK_ACTIVE ? 1 : 0);
+  PRINT_KEY_VALUE("SHUTDOWN_LT_CUSH", SHUTDOWN_LT_CUSH_ACTIVE ? 1 : 0);
+  PRINT_KEY_VALUE("SHUTDOWN_LT_BACK", SHUTDOWN_LT_BACK_ACTIVE ? 1 : 0);
+
+#undef PRINT_KEY_VALUE
+}
+
+void CheckSerialCommands() {
+  if (Serial.available() > 0) {
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
+
+    if (cmd.startsWith("HEAT:")) {
+      int level = cmd.substring(5).toInt();
+      if (level >= 0 && level <= 3) {
+        if (level == 0) DESIRED_HEAT = HEAT_OFF;
+        else if (level == 1) DESIRED_HEAT = HEAT_LEVEL_1_SP;
+        else if (level == 2) DESIRED_HEAT = HEAT_LEVEL_2_SP;
+        else if (level == 3) DESIRED_HEAT = HEAT_LEVEL_3_SP;
+        DESIRED_COOL = FAN_OFF;  // Disable opposite mode
+      }
+    } else if (cmd.startsWith("COOL:")) {
+      int level = cmd.substring(5).toInt();
+      if (level >= 0 && level <= 3) {
+        if (level == 0) DESIRED_COOL = FAN_OFF;
+        else if (level == 1) DESIRED_COOL = COOL_LEVEL_1_SP;
+        else if (level == 2) DESIRED_COOL = COOL_LEVEL_2_SP;
+        else if (level == 3) DESIRED_COOL = COOL_LEVEL_3_SP;
+        DESIRED_HEAT = HEAT_OFF;
+      }
+    }
+  }
 }
