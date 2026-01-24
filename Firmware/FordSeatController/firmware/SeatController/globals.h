@@ -30,6 +30,16 @@
 #define BTN_THRES 150 // in ADC ticks
 #define PID_THRES 5  // in degrees C, this difference triggers change in PID sensitivy
 
+// Fan control
+#define FAN_MIN_HEAT    50.0    // % — higher for heat distribution once warm
+#define FAN_MIN_COOL    60.0    // % — even higher for cooling feel (sweat evaporation)
+#define FAN_BIAS_OFFSET 2.0     // in heat: target slightly above setpoint → more fan when close
+                                // in cool: target slightly below setpoint → more fan when close
+#define FAN_PID_KP      10.0    // Slightly more aggressive to respond quickly
+#define FAN_PID_KI      5.0
+#define FAN_PID_KD      0.0
+
+
 // setpoints in deg C, 
 #define HEAT_OFF        0.0
 #define HEAT_LEVEL_1_SP 47.0
@@ -99,10 +109,20 @@ double BK_NTC_AVG;
 double CSH_TED_PWM_OUT = 0.0;
 double BK_TED_PWM_OUT = 0.0;
 
+double CSH_FAN_PWM_OUT = 0.0;
+double BK_FAN_PWM_OUT = 0.0;
+
 uint8_t CSH_TED_PWM = 0;
 uint8_t BK_TED_PWM = 0;
 uint8_t CSH_BLOWR_PWM = 0;
 uint8_t BK_BLOWR_PWM = 0;
+
+uint8_t CSH_FAN_PWM = 0;
+uint8_t BK_FAN_PWM = 0;
+
+double FAN_MIN_HEAT    = 50.0;
+double FAN_MIN_COOL    = 60.0;
+double FAN_BIAS_OFFSET = 2.0;
 
 double DESIRED_HEAT = HEAT_OFF;
 double DESIRED_COOL = FAN_OFF;
@@ -118,6 +138,9 @@ double _aggKp = 15.0, _aggKi = 10.0, _aggKd = 0.0;
 PID cshPID(&CSH_NTC_AVG, &CSH_TED_PWM_OUT, &SetPoint, _aggKp, _aggKi, _aggKd, DIRECT);
 PID bkPID(&BK_NTC_AVG, &BK_TED_PWM_OUT, &SetPoint, _aggKp, _aggKi, _aggKd, DIRECT);
 
+double _fanKp = 10.0, _fanKi = 5.0, _fanKd = 0.0;
+PID cshFanPID(&CSH_NTC_AVG, &CSH_FAN_PWM_OUT, &SetPoint, _fanKp, _fanKi, _fanKd, DIRECT);
+PID bkFanPID(&BK_NTC_AVG, &BK_FAN_PWM_OUT, &SetPoint, _fanKp, _fanKi, _fanKd, DIRECT);
 
 // NTC Thermistor Variables
 Thermistor* CSH_Thermistor = new NTC_Thermistor(

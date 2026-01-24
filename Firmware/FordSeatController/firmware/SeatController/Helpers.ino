@@ -137,121 +137,126 @@ void CheckButtons() {
 }
 
 void SetLEDOutputs() {
+  // LEDs indicate requested level (fan now dynamic)
   if (DESIRED_COOL == FAN_OFF) {
-    // turn off cool leds
     digitalWrite(COOL1_LED, LOW);
     digitalWrite(COOL2_LED, LOW);
     digitalWrite(COOL3_LED, LOW);
-    CSH_BLOWR_PWM = FAN_OFF;
-    BK_BLOWR_PWM = FAN_OFF;
   } else if (DESIRED_COOL == COOL_LEVEL_1_SP) {
-    // set cool 1 to be on
     digitalWrite(COOL1_LED, HIGH);
-    CSH_BLOWR_PWM = COOL_LEVEL_1_FAN;
-    BK_BLOWR_PWM = COOL_LEVEL_1_FAN;
   } else if (DESIRED_COOL == COOL_LEVEL_2_SP) {
-    // set cool 1 and 2 to be on
     digitalWrite(COOL1_LED, HIGH);
     digitalWrite(COOL2_LED, HIGH);
-    CSH_BLOWR_PWM = COOL_LEVEL_2_FAN;
-    BK_BLOWR_PWM = COOL_LEVEL_2_FAN;
   } else if (DESIRED_COOL == COOL_LEVEL_3_SP) {
-    // set cool 1, 2 and 3 to be on
     digitalWrite(COOL1_LED, HIGH);
     digitalWrite(COOL2_LED, HIGH);
     digitalWrite(COOL3_LED, HIGH);
-    CSH_BLOWR_PWM = COOL_LEVEL_3_FAN;
-    BK_BLOWR_PWM = COOL_LEVEL_3_FAN;
   }
 
   if (DESIRED_HEAT == HEAT_OFF) {
-    // turn off HEAT leds
     digitalWrite(HEAT1_LED, LOW);
     digitalWrite(HEAT2_LED, LOW);
     digitalWrite(HEAT3_LED, LOW);
-    CSH_BLOWR_PWM = FAN_OFF;
-    BK_BLOWR_PWM = FAN_OFF;
   } else if (DESIRED_HEAT == HEAT_LEVEL_1_SP) {
-    // set HEAT 1 to be on
     digitalWrite(HEAT1_LED, HIGH);
-    CSH_BLOWR_PWM = HEAT_LEVEL_1_FAN;
-    BK_BLOWR_PWM = HEAT_LEVEL_1_FAN;
   } else if (DESIRED_HEAT == HEAT_LEVEL_2_SP) {
-    // set HEAT 1 and 2 to be on
     digitalWrite(HEAT1_LED, HIGH);
     digitalWrite(HEAT2_LED, HIGH);
-    CSH_BLOWR_PWM = HEAT_LEVEL_2_FAN;
-    BK_BLOWR_PWM = HEAT_LEVEL_2_FAN;
   } else if (DESIRED_HEAT == HEAT_LEVEL_3_SP) {
-    // set HEAT 1, 2 and 3 to be on
     digitalWrite(HEAT1_LED, HIGH);
     digitalWrite(HEAT2_LED, HIGH);
     digitalWrite(HEAT3_LED, HIGH);
-    CSH_BLOWR_PWM = HEAT_LEVEL_3_FAN;
-    BK_BLOWR_PWM = HEAT_LEVEL_3_FAN;
   }
 }
 
 void AdjustPWMValues() {
-  // based on what state our controller is in, adjust the pwm values
-  // relative to our measured temperatures for heat or cool
+  double fanSetpoint = SetPoint;
+
   if (DESIRED_HEAT != HEAT_OFF) {
-    // we are in a heat state
+    // Heat mode
     digitalWrite(HEAT_COOL_RLY, LOW);
 
     SetPoint = DESIRED_HEAT;
+    fanSetpoint = DESIRED_HEAT + FAN_BIAS_OFFSET;  // Bias higher → encourages more fan when close
+
+    // TED PID - DIRECT
     cshPID.SetControllerDirection(DIRECT);
     bkPID.SetControllerDirection(DIRECT);
-
     cshPID.Compute();
     bkPID.Compute();
 
-    // convert PID output (assuming 0-255) to 0-100%
     CSH_TED_PWM = (uint8_t)((CSH_TED_PWM_OUT / 255.0) * 100.0);
-    BK_TED_PWM = (uint8_t)((BK_TED_PWM_OUT / 255.0) * 100.0);
-
+    BK_TED_PWM  = (uint8_t)((BK_TED_PWM_OUT  / 255.0) * 100.0);
     if (CSH_TED_PWM > MAX_PWM) CSH_TED_PWM = MAX_PWM;
-    if (BK_TED_PWM > MAX_PWM) BK_TED_PWM = MAX_PWM;
+    if (BK_TED_PWM  > MAX_PWM) BK_TED_PWM  = MAX_PWM;
 
-    // apply shutdowns
-    if (SHUTDOWN_HT_CUSH_ACTIVE || SHUTDOWN_LT_CUSH_ACTIVE) {
-      CSH_TED_PWM = 0;
-    }
-    if (SHUTDOWN_HT_BACK_ACTIVE || SHUTDOWN_LT_BACK_ACTIVE) {
-      BK_TED_PWM = 0;
-    }
+    // Fan PID - REVERSE (lower fan when far from setpoint → max TEC heating effect)
+    cshFanPID.SetControllerDirection(REVERSE);
+    bkFanPID.SetControllerDirection(REVERSE);
+    cshFanPID.Setpoint = fanSetpoint;
+    bkFanPID.Setpoint = fanSetpoint;
+    cshFanPID.Compute();
+    bkFanPID.Compute();
+
+    CSH_FAN_PWM = (uint8_t)((CSH_FAN_PWM_OUT / 255.0) * 100.0);
+    BK_FAN_PWM  = (uint8_t)((BK_FAN_PWM_OUT  / 255.0) * 100.0);
+
+    // Enforce minimum fan PWM and cap at 100%
+    if (CSH_FAN_PWM < FAN_MIN_HEAT) CSH_FAN_PWM = FAN_MIN_HEAT;
+    if (BK_FAN_PWM  < FAN_MIN_HEAT) BK_FAN_PWM  = FAN_MIN_HEAT;
+    if (CSH_FAN_PWM > 100) CSH_FAN_PWM = 100;
+    if (BK_FAN_PWM  > 100) BK_FAN_PWM  = 100;
+
+    // Shutdowns
+    if (SHUTDOWN_HT_CUSH_ACTIVE || SHUTDOWN_LT_CUSH_ACTIVE) CSH_TED_PWM = 0;
+    if (SHUTDOWN_HT_BACK_ACTIVE || SHUTDOWN_LT_BACK_ACTIVE) BK_TED_PWM  = 0;
+
   } else if (DESIRED_COOL != FAN_OFF) {
-    // we are in a cool state
+    // Cool mode
     digitalWrite(HEAT_COOL_RLY, HIGH);
 
     SetPoint = DESIRED_COOL;
+    fanSetpoint = DESIRED_COOL - FAN_BIAS_OFFSET;  // Bias lower → encourages more fan when close
+
+    // TED PID - REVERSE
     cshPID.SetControllerDirection(REVERSE);
     bkPID.SetControllerDirection(REVERSE);
-
     cshPID.Compute();
     bkPID.Compute();
 
-    // convert PID output (assuming 0-255) to 0-100%
     CSH_TED_PWM = (uint8_t)((CSH_TED_PWM_OUT / 255.0) * 100.0);
-    BK_TED_PWM = (uint8_t)((BK_TED_PWM_OUT / 255.0) * 100.0);
-
+    BK_TED_PWM  = (uint8_t)((BK_TED_PWM_OUT  / 255.0) * 100.0);
     if (CSH_TED_PWM > MAX_PWM) CSH_TED_PWM = MAX_PWM;
-    if (BK_TED_PWM > MAX_PWM) BK_TED_PWM = MAX_PWM;
+    if (BK_TED_PWM  > MAX_PWM) BK_TED_PWM  = MAX_PWM;
 
-    // apply shutdowns
-    if (SHUTDOWN_HT_CUSH_ACTIVE || SHUTDOWN_LT_CUSH_ACTIVE) {
-      CSH_TED_PWM = 0;
-    }
-    if (SHUTDOWN_HT_BACK_ACTIVE || SHUTDOWN_LT_BACK_ACTIVE) {
-      BK_TED_PWM = 0;
-    }
+    // Fan PID - REVERSE (lower fan when far from setpoint → max TEC cooling effect)
+    cshFanPID.SetControllerDirection(REVERSE);
+    bkFanPID.SetControllerDirection(REVERSE);
+    cshFanPID.Setpoint = fanSetpoint;
+    bkFanPID.Setpoint = fanSetpoint;
+    cshFanPID.Compute();
+    bkFanPID.Compute();
+
+    CSH_FAN_PWM = (uint8_t)((CSH_FAN_PWM_OUT / 255.0) * 100.0);
+    BK_FAN_PWM  = (uint8_t)((BK_FAN_PWM_OUT  / 255.0) * 100.0);
+
+    // Enforce minimum fan PWM and cap at 100%
+    if (CSH_FAN_PWM < FAN_MIN_COOL) CSH_FAN_PWM = FAN_MIN_COOL;
+    if (BK_FAN_PWM  < FAN_MIN_COOL) BK_FAN_PWM  = FAN_MIN_COOL;
+    if (CSH_FAN_PWM > 100) CSH_FAN_PWM = 100;
+    if (BK_FAN_PWM  > 100) BK_FAN_PWM  = 100;
+
+    // Shutdowns
+    if (SHUTDOWN_HT_CUSH_ACTIVE || SHUTDOWN_LT_CUSH_ACTIVE) CSH_TED_PWM = 0;
+    if (SHUTDOWN_HT_BACK_ACTIVE || SHUTDOWN_LT_BACK_ACTIVE) BK_TED_PWM  = 0;
+
   } else {
-    // set everything to off
+    // Off
     digitalWrite(HEAT_COOL_RLY, LOW);
     CSH_TED_PWM = 0;
-    CSH_BLOWR_PWM = 0;
-    BK_TED_PWM = 0;
-    BK_BLOWR_PWM = 0;
+    BK_TED_PWM  = 0;
+    CSH_FAN_PWM = 0;
+    BK_FAN_PWM  = 0;
   }
 }
 
@@ -263,7 +268,7 @@ void UpdatePWMOutputs() {
     digitalWrite(CSHTED_CTRL, LOW);
 
   // cushion blower pwm
-  if (_pwm_count < (CSH_BLOWR_PWM / 20.0))
+  if (_pwm_count < (CSH_FAN_PWM / 20.0))
     digitalWrite(CSHBLWR_CTRL, HIGH);
   else
     digitalWrite(CSHBLWR_CTRL, LOW);
@@ -275,7 +280,7 @@ void UpdatePWMOutputs() {
     digitalWrite(BKTED_CTRL, LOW);
 
   // back blower pwm
-  if (_pwm_count < (BK_BLOWR_PWM / 20.0))
+  if (_pwm_count < (BK_FAN_PWM / 20.0))
     digitalWrite(BKBLWR_CTRL, HIGH);
   else
     digitalWrite(BKBLWR_CTRL, LOW);
@@ -296,9 +301,9 @@ void UpdateSoftware() {
   Serial.println("BK_NTC_AVG=" + String(BK_NTC_AVG));
 
   // system variables
-  Serial.println("CSH_BLOWR_PWM=" + String(CSH_BLOWR_PWM));
+  Serial.println("CSH_BLOWR_PWM=" + String(CSH_FAN_PWM));
   Serial.println("CSH_TED_PWM=" + String(CSH_TED_PWM));
-  Serial.println("BK_BLOWR_PWM=" + String(BK_BLOWR_PWM));
+  Serial.println("BK_BLOWR_PWM=" + String(BK_FAN_PWM));
   Serial.println("BK_TED_PWM=" + String(BK_TED_PWM));
   Serial.println("SHUTDOWN_HT_CUSH=" + String(SHUTDOWN_HT_CUSH_ACTIVE));
   Serial.println("SHUTDOWN_HT_BACK=" + String(SHUTDOWN_HT_BACK_ACTIVE));
