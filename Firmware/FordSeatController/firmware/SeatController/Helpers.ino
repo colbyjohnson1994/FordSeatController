@@ -137,7 +137,7 @@ void CheckButtons() {
 }
 
 void SetLEDOutputs() {
-  // LEDs indicate requested level (fan now dynamic)
+  // LEDs indicate requested level (fan is now dynamic)
   if (DESIRED_COOL == FAN_OFF) {
     digitalWrite(COOL1_LED, LOW);
     digitalWrite(COOL2_LED, LOW);
@@ -170,14 +170,12 @@ void SetLEDOutputs() {
 }
 
 void AdjustPWMValues() {
-  double fanSetpoint = SetPoint;
-
   if (DESIRED_HEAT != HEAT_OFF) {
     // Heat mode
     digitalWrite(HEAT_COOL_RLY, LOW);
 
-    SetPoint = DESIRED_HEAT;
-    fanSetpoint = DESIRED_HEAT + FAN_BIAS_OFFSET;  // Bias higher → encourages more fan when close
+    SetPoint = DESIRED_HEAT;                   // TED setpoint
+    FanSetPoint = DESIRED_HEAT + FAN_BIAS_OFFSET;  // Fan setpoint (bias higher → more fan when close)
 
     // TED PID - DIRECT
     cshPID.SetControllerDirection(DIRECT);
@@ -193,8 +191,6 @@ void AdjustPWMValues() {
     // Fan PID - REVERSE (lower fan when far from setpoint → max TEC heating effect)
     cshFanPID.SetControllerDirection(REVERSE);
     bkFanPID.SetControllerDirection(REVERSE);
-    cshFanPID.Setpoint = fanSetpoint;
-    bkFanPID.Setpoint = fanSetpoint;
     cshFanPID.Compute();
     bkFanPID.Compute();
 
@@ -215,8 +211,8 @@ void AdjustPWMValues() {
     // Cool mode
     digitalWrite(HEAT_COOL_RLY, HIGH);
 
-    SetPoint = DESIRED_COOL;
-    fanSetpoint = DESIRED_COOL - FAN_BIAS_OFFSET;  // Bias lower → encourages more fan when close
+    SetPoint = DESIRED_COOL;                   // TED setpoint
+    FanSetPoint = DESIRED_COOL - FAN_BIAS_OFFSET;  // Fan setpoint (bias lower → more fan when close)
 
     // TED PID - REVERSE
     cshPID.SetControllerDirection(REVERSE);
@@ -232,8 +228,6 @@ void AdjustPWMValues() {
     // Fan PID - REVERSE (lower fan when far from setpoint → max TEC cooling effect)
     cshFanPID.SetControllerDirection(REVERSE);
     bkFanPID.SetControllerDirection(REVERSE);
-    cshFanPID.Setpoint = fanSetpoint;
-    bkFanPID.Setpoint = fanSetpoint;
     cshFanPID.Compute();
     bkFanPID.Compute();
 
