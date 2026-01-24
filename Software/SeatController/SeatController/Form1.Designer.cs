@@ -69,6 +69,8 @@
             this.discoBtn = new System.Windows.Forms.Button();
             this.label16 = new System.Windows.Forms.Label();
             this.label17 = new System.Windows.Forms.Label();
+            this.cshDisableCB = new System.Windows.Forms.CheckBox();
+            this.bkDisableCB = new System.Windows.Forms.CheckBox();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.cshChart)).BeginInit();
@@ -508,11 +510,33 @@
             this.label17.TabIndex = 21;
             this.label17.Text = "Seatback Control";
             // 
+            // cshDisableCB
+            // 
+            this.cshDisableCB.AutoSize = true;
+            this.cshDisableCB.Location = new System.Drawing.Point(440, 329);
+            this.cshDisableCB.Name = "cshDisableCB";
+            this.cshDisableCB.Size = new System.Drawing.Size(102, 28);
+            this.cshDisableCB.TabIndex = 22;
+            this.cshDisableCB.Text = "Disabled";
+            this.cshDisableCB.UseVisualStyleBackColor = true;
+            // 
+            // bkDisableCB
+            // 
+            this.bkDisableCB.AutoSize = true;
+            this.bkDisableCB.Location = new System.Drawing.Point(440, 505);
+            this.bkDisableCB.Name = "bkDisableCB";
+            this.bkDisableCB.Size = new System.Drawing.Size(102, 28);
+            this.bkDisableCB.TabIndex = 24;
+            this.bkDisableCB.Text = "Disabled";
+            this.bkDisableCB.UseVisualStyleBackColor = true;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(11F, 24F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1036, 697);
+            this.Controls.Add(this.bkDisableCB);
+            this.Controls.Add(this.cshDisableCB);
             this.Controls.Add(this.label17);
             this.Controls.Add(this.label16);
             this.Controls.Add(this.discoBtn);
@@ -596,6 +620,8 @@
         private System.Windows.Forms.Button discoBtn;
         private System.Windows.Forms.Label label16;
         private System.Windows.Forms.Label label17;
+        private System.Windows.Forms.CheckBox cshDisableCB;
+        private System.Windows.Forms.CheckBox bkDisableCB;
     }
 }
 

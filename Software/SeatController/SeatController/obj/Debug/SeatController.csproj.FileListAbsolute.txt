@@ -30,3 +30,4 @@ C:\Users\colby\OneDrive\Documents\GitHub\FordSeatController\Software\SeatControl
 C:\Users\colby\OneDrive\Documents\GitHub\FordSeatController\Software\SeatController\SeatController\obj\Debug\SeatController.csproj.CoreCompileInputs.cache
 C:\Users\colby\OneDrive\Documents\GitHub\FordSeatController\Software\SeatController\SeatController\obj\Debug\SeatController.exe
 C:\Users\colby\OneDrive\Documents\GitHub\FordSeatController\Software\SeatController\SeatController\obj\Debug\SeatController.pdb
+C:\Users\colby\OneDrive\Documents\GitHub\FordSeatController\Software\SeatController\SeatController\obj\Debug\SeatController.exe.config

@@ -49,6 +49,41 @@ void ReadFromInputs() {
   BK_NTC_AVG = BK_Smooth_Thermistor->readCelsius();
 }
 
+void CheckTemperatureLimits() {
+  // check if we are above limits
+  if (CSH_NTC_AVG > SHUTDOWN_HT_OFF) {
+    SHUTDOWN_HT_CUSH_ACTIVE = true;
+  } else {
+    if (SHUTDOWN_HT_CUSH_ACTIVE && CSH_NTC_AVG < SHUTDOWN_HT_ON) {
+      SHUTDOWN_HT_CUSH_ACTIVE = false;
+    }
+  }
+
+  if (BK_NTC_AVG > SHUTDOWN_HT_OFF) {
+    SHUTDOWN_HT_BACK_ACTIVE = true;
+  } else {
+    if (SHUTDOWN_HT_CUSH_ACTIVE && BK_NTC_AVG < SHUTDOWN_HT_ON) {
+      SHUTDOWN_HT_BACK_ACTIVE = false;
+    }
+  }
+
+  if (CSH_NTC_AVG < SHUTDOWN_LT_OFF) {
+    SHUTDOWN_LT_CUSH_ACTIVE = true;
+  } else {
+    if (SHUTDOWN_LT_CUSH_ACTIVE && CSH_NTC_AVG > SHUTDOWN_LT_ON) {
+      SHUTDOWN_LT_CUSH_ACTIVE = false;
+    }
+  }
+
+  if (BK_NTC_AVG < SHUTDOWN_LT_OFF) {
+    SHUTDOWN_LT_BACK_ACTIVE = true;
+  } else {
+    if (SHUTDOWN_LT_BACK_ACTIVE && BK_NTC_AVG > SHUTDOWN_LT_ON) {
+      SHUTDOWN_LT_BACK_ACTIVE = false;
+    }
+  }
+}
+
 void CheckButtons() {
   static bool coolState = false;
   static bool heatState = false;
@@ -175,11 +210,25 @@ void AdjustPWMValues() {
       CSH_TED_PWM = MAX_PWM;
     if (BK_TED_PWM > MAX_PWM)
       BK_TED_PWM = MAX_PWM;
+
+    if (SHUTDOWN_HT_CUSH_ACTIVE || SHUTDOWN_LT_CUSH_ACTIVE){
+      CSH_TED_PWM = 0;
+    }
+    if (SHUTDOWN_HT_BACK_ACTIVE || SHUTDOWN_LT_BACK_ACTIVE){
+      BK_TED_PWM = 0;
+    }
   } else if (DESIRED_COOL != FAN_OFF) {
     digitalWrite(HEAT_COOL_RLY, HIGH);
     // needs to be separate from heat so we can control the fan pwm separately
     CSH_BLOWR_PWM = DESIRED_COOL;
     BK_BLOWR_PWM = DESIRED_COOL;
+
+    if (SHUTDOWN_HT_CUSH_ACTIVE || SHUTDOWN_LT_CUSH_ACTIVE){
+      CSH_TED_PWM = 0;
+    }
+    if (SHUTDOWN_HT_BACK_ACTIVE || SHUTDOWN_LT_BACK_ACTIVE){
+      BK_TED_PWM = 0;
+    }
   } else {
     // set everything to off
     digitalWrite(HEAT_COOL_RLY, LOW);
@@ -207,13 +256,13 @@ void UpdatePWMOutputs() {
   else
     digitalWrite(CSHBLWR_CTRL, LOW);
 
-  // cushion ted pwm
+  // back ted pwm
   if (_pwm_count < (BK_TED_PWM / 20.0))
     digitalWrite(BKTED_CTRL, HIGH);
   else
     digitalWrite(BKTED_CTRL, LOW);
 
-  // cushion ted pwm
+  // back blower pwm
   if (_pwm_count < (BK_BLOWR_PWM / 20.0))
     digitalWrite(BKBLWR_CTRL, HIGH);
   else
@@ -239,4 +288,8 @@ void UpdateSoftware() {
   Serial.println("CSH_TED_PWM=" + String(CSH_TED_PWM));
   Serial.println("BK_BLOWR_PWM=" + String(BK_BLOWR_PWM));
   Serial.println("BK_TED_PWM=" + String(BK_TED_PWM));
+  Serial.println("SHUTDOWN_HT_CUSH=" + String(SHUTDOWN_HT_CUSH_ACTIVE));
+  Serial.println("SHUTDOWN_HT_BACK=" + String(SHUTDOWN_HT_BACK_ACTIVE));
+  Serial.println("SHUTDOWN_LT_CUSH=" + String(SHUTDOWN_LT_CUSH_ACTIVE));
+  Serial.println("SHUTDOWN_LT_BACK=" + String(SHUTDOWN_LT_BACK_ACTIVE));
 }

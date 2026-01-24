@@ -43,6 +43,11 @@ namespace SeatController
         private Series bkSPSeries = new Series();
         private Series bkTempSeries = new Series();
 
+        private bool bkShutdownHT = false;
+        private bool cshShutdownHT = false;
+        private bool bkShutdownLT = false;
+        private bool cshShutdownLT = false;
+
         private long totalPacketsRcvd = 0;
 
         private DateTime startTime = DateTime.Now;
@@ -160,6 +165,18 @@ namespace SeatController
                     case "BK_TED_PWM":
                         bkTedPerc = (float.Parse(val) / _MAXPWM) *100.0f;
                         break;
+                    case "SHUTDOWN_HT_CUSH":
+                        cshShutdownHT = Convert.ToBoolean(int.Parse(val));
+                        break;
+                    case "SHUTDOWN_HT_BACK":
+                        bkShutdownHT = Convert.ToBoolean(int.Parse(val));
+                        break;
+                    case "SHUTDOWN_LT_CUSH":
+                        cshShutdownLT = Convert.ToBoolean(int.Parse(val));
+                        break;
+                    case "SHUTDOWN_LT_BACK":
+                        bkShutdownLT = Convert.ToBoolean(int.Parse(val));
+                        break;
                 }
             }
         }
@@ -197,6 +214,9 @@ namespace SeatController
                 cshChartArea.AxisX.Minimum = xminVal;
                 //bkChartArea.AxisX.Minimum = = xminVal;
             }
+
+            bkDisableCB.Checked = bkShutdownHT || bkShutdownLT;
+            cshDisableCB.Checked = cshShutdownLT || cshShutdownHT;
         }
 
         private void refreshBtn_Click(object sender, EventArgs e)

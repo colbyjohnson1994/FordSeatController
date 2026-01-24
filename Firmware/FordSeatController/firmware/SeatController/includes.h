@@ -10,4 +10,6 @@
 #include <PID_v1.h>
 #include "globals.h"
 
+// NTC THERMISTOR LIBRARY NEEDS TO BE 2.0.1
+
 #endif

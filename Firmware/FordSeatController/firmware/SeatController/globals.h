@@ -15,7 +15,7 @@
 #define B_VALUE                3950
 
 // pwm definitions
-#define MAX_PWM 40
+#define MAX_PWM 100
 #define MIN_PWM 0
 #define MAX_CYCLE 5
 
@@ -25,7 +25,7 @@
 #define SOFTWARE_FREQ 500 // in ms
 #define BUTTON_FREQ 100 // in ms
 #define SMOOTHING_FACTOR 10 // moving average size
-#define PWM_FREQ 1.0 // in hertz
+#define PWM_FREQ 100.0 // in hertz
 #define PWM_INTERVAL (uint8_t)(1000.0 / PWM_FREQ)
 #define BTN_THRES 150 // in ADC ticks
 #define PID_THRES 5  // in degrees C, this difference triggers change in PID sensitivy
@@ -41,13 +41,18 @@
 #define COOL_LEVEL_3_SP 0.0
 
 #define FAN_OFF           0.0
-#define HEAT_LEVEL_1_FAN  100.0
-#define HEAT_LEVEL_2_FAN  100.0
+#define HEAT_LEVEL_1_FAN  40.0
+#define HEAT_LEVEL_2_FAN  75.0
 #define HEAT_LEVEL_3_FAN  100.0
 
-#define COOL_LEVEL_1_FAN  100.0
-#define COOL_LEVEL_2_FAN  100.0
+#define COOL_LEVEL_1_FAN  40.0
+#define COOL_LEVEL_2_FAN  75.0
 #define COOL_LEVEL_3_FAN  100.0
+
+#define SHUTDOWN_HT_OFF   70.0
+#define SHUTDOWN_HT_ON    65.0
+#define SHUTDOWN_LT_OFF   -30.0
+#define SHUTDOWN_LT_ON    -25.0
 
 // Controller pin definitions
 // Analog Inputs
@@ -101,6 +106,11 @@ uint8_t BK_BLOWR_PWM = 0;
 
 double DESIRED_HEAT = HEAT_OFF;
 double DESIRED_COOL = FAN_OFF;
+
+bool SHUTDOWN_HT_CUSH_ACTIVE = false;
+bool SHUTDOWN_HT_BACK_ACTIVE = false;
+bool SHUTDOWN_LT_CUSH_ACTIVE = false;
+bool SHUTDOWN_LT_BACK_ACTIVE = false;
 
 double _aggKp = 15.0, _aggKi = 10.0, _aggKd = 0.0;
 PID cshPID(&CSH_NTC_AVG, &CSH_TED_PWM_OUT, &DESIRED_HEAT, _aggKp, _aggKi, _aggKd, DIRECT);
