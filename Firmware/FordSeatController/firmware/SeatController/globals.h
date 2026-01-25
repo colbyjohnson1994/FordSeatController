@@ -21,12 +21,6 @@
 
 // Seat control definitions
 
-// Maximum runtime before dropping to level 1 (in milliseconds)
-// 60 minutes = 3,600,000 ms
-#define MAX_MODE_RUNTIME_MS   3600000UL
-// Time when current mode started
-unsigned long modeStartTime = 0;
-
 #define READ_FREQ 100 // in ms
 #define COOLDOWN_TIMER  5000  // in milli seconds
 #define CONTROL_FREQ 1000 // in milli seconds

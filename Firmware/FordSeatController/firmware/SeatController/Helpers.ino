@@ -186,31 +186,6 @@ void SetLEDOutputs() {
 }
 
 void AdjustPWMValues() {
-  // Track mode runtime and drop to level 1 if timeout reached
-  bool isActiveMode = (DESIRED_HEAT != HEAT_OFF) || (DESIRED_COOL != FAN_OFF);
-
-  if (isActiveMode) {
-    if (modeStartTime == 0) {
-      modeStartTime = millis();  // Start counting when mode becomes active
-    }
-
-    if (millis() - modeStartTime > MAX_MODE_RUNTIME_MS) {
-      // Timeout reached → drop to level 1
-      if (DESIRED_HEAT != HEAT_OFF) {
-        DESIRED_HEAT = HEAT_LEVEL_1_SP;
-      } else if (DESIRED_COOL != FAN_OFF) {
-        DESIRED_COOL = COOL_LEVEL_1_SP;
-      }
-
-      modeStartTime = millis();  // Reset timer so it doesn't immediately trigger again
-      // Optional: flash RED_LED or send message via Serial
-      Serial.println("Mode timeout reached - dropped to level 1");
-    }
-  } else {
-    // Mode is OFF → reset timer
-    modeStartTime = 0;
-  }
-
   if (DESIRED_HEAT != HEAT_OFF) {
     digitalWrite(HEAT_COOL_RLY, LOW);
 
