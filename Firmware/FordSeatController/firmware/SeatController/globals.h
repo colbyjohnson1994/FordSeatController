@@ -28,6 +28,7 @@
 unsigned long modeStartTime = 0;
 
 #define READ_FREQ 100 // in ms
+#define COOLDOWN_TIMER  5000  // in milli seconds
 #define CONTROL_FREQ 1000 // in milli seconds
 #define SOFTWARE_FREQ 250 // in ms
 #define BUTTON_FREQ 100 // in ms
@@ -73,6 +74,7 @@ unsigned long modeStartTime = 0;
 #define SHUTDOWN_HT_ON    65.0
 #define SHUTDOWN_LT_OFF   10.0
 #define SHUTDOWN_LT_ON    15.0
+#define SHUTDOWN_FAN_PERC 50.0
 
 // Fan control constants
 #define FAN_MIN_HEAT      10.0    // Minimum fan % in heating mode
@@ -122,6 +124,7 @@ unsigned long _sensor_seconds = 0;
 unsigned long _control_seconds = 0;
 unsigned long _software_seconds = 0;
 unsigned long _button_seconds = 0;
+unsigned long _cooldown_seconds = 0;
 
 unsigned long _pwm_seconds = 0;
 unsigned long _pwm_count = 0;
@@ -157,6 +160,7 @@ bool SHUTDOWN_HT_CUSH_ACTIVE = false;
 bool SHUTDOWN_HT_BACK_ACTIVE = false;
 bool SHUTDOWN_LT_CUSH_ACTIVE = false;
 bool SHUTDOWN_LT_BACK_ACTIVE = false;
+bool COOLDOWN_ACTIVE = false;
 
 double _aggKp = 15.0, _aggKi = 10.0, _aggKd = 0.0;
 PID cshPID(&CSH_NTC_AVG, &CSH_TED_PWM_OUT, &SetPoint, _aggKp, _aggKi, _aggKd, DIRECT);

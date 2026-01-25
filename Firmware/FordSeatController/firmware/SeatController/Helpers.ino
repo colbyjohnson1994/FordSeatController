@@ -102,9 +102,14 @@ void CheckButtons() {
       else if (DESIRED_COOL == COOL_LEVEL_2_SP)
         // advance to cool stage 3
         DESIRED_COOL = COOL_LEVEL_3_SP;
-      else if (DESIRED_COOL == COOL_LEVEL_3_SP)
+      else if (DESIRED_COOL == COOL_LEVEL_3_SP) {
         // turn off cooling
         DESIRED_COOL = FAN_OFF;
+
+        // enable cooldown
+        _cooldown_seconds = millis();
+        COOLDOWN_ACTIVE = true;
+      }
     }
   } else {
     // reset debounce
@@ -126,9 +131,14 @@ void CheckButtons() {
       else if (DESIRED_HEAT == HEAT_LEVEL_2_SP)
         // advance to heat stage 3
         DESIRED_HEAT = HEAT_LEVEL_3_SP;
-      else if (DESIRED_HEAT == HEAT_LEVEL_3_SP)
+      else if (DESIRED_HEAT == HEAT_LEVEL_3_SP) {
         // turn off heating
         DESIRED_HEAT = HEAT_OFF;
+
+        // enable cooldown
+        _cooldown_seconds = millis();
+        COOLDOWN_ACTIVE = true;
+      }
     }
   } else {
     // reset debounce
@@ -260,8 +270,14 @@ void AdjustPWMValues() {
     if (BK_FAN_PWM > fanMaxHeat) BK_FAN_PWM = (uint8_t)fanMaxHeat;
 
     // Shutdowns
-    if (SHUTDOWN_HT_CUSH_ACTIVE || SHUTDOWN_LT_CUSH_ACTIVE) CSH_TED_PWM = 0;
-    if (SHUTDOWN_HT_BACK_ACTIVE || SHUTDOWN_LT_BACK_ACTIVE) BK_TED_PWM = 0;
+    if (SHUTDOWN_HT_CUSH_ACTIVE || SHUTDOWN_LT_CUSH_ACTIVE) {
+      CSH_TED_PWM = 0;
+      CSH_FAN_PWM = SHUTDOWN_FAN_PERC;
+    }
+    if (SHUTDOWN_HT_BACK_ACTIVE || SHUTDOWN_LT_BACK_ACTIVE) {
+      BK_TED_PWM = 0;
+      BK_FAN_PWM = SHUTDOWN_FAN_PERC;
+    }
   } else if (DESIRED_COOL != FAN_OFF) {
     // Cool mode
     digitalWrite(HEAT_COOL_RLY, HIGH);
@@ -323,8 +339,14 @@ void AdjustPWMValues() {
     if (BK_FAN_PWM > fanMaxCool) BK_FAN_PWM = (uint8_t)fanMaxCool;
 
     // Shutdowns
-    if (SHUTDOWN_HT_CUSH_ACTIVE || SHUTDOWN_LT_CUSH_ACTIVE) CSH_TED_PWM = 0;
-    if (SHUTDOWN_HT_BACK_ACTIVE || SHUTDOWN_LT_BACK_ACTIVE) BK_TED_PWM = 0;
+    if (SHUTDOWN_HT_CUSH_ACTIVE || SHUTDOWN_LT_CUSH_ACTIVE) {
+      CSH_TED_PWM = 0;
+      CSH_FAN_PWM = SHUTDOWN_FAN_PERC;
+    }
+    if (SHUTDOWN_HT_BACK_ACTIVE || SHUTDOWN_LT_BACK_ACTIVE) {
+      BK_TED_PWM = 0;
+      BK_FAN_PWM = SHUTDOWN_FAN_PERC;
+    }
   } else {
     // Off
     digitalWrite(HEAT_COOL_RLY, LOW);
@@ -332,6 +354,11 @@ void AdjustPWMValues() {
     BK_TED_PWM = 0;
     CSH_FAN_PWM = 0;
     BK_FAN_PWM = 0;
+
+    if (COOLDOWN_ACTIVE) {
+      CSH_FAN_PWM = SHUTDOWN_FAN_PERC;
+      BK_FAN_PWM = SHUTDOWN_FAN_PERC;
+    }
   }
 }
 
@@ -412,7 +439,13 @@ void CheckSerialCommands() {
     if (cmd.startsWith("HEAT:")) {
       int level = cmd.substring(5).toInt();
       if (level >= 0 && level <= 3) {
-        if (level == 0) DESIRED_HEAT = HEAT_OFF;
+        if (level == 0){
+          DESIRED_HEAT = FAN_OFF;
+
+          // enable cooldown
+          _cooldown_seconds = millis();
+          COOLDOWN_ACTIVE = true;
+        }
         else if (level == 1) DESIRED_HEAT = HEAT_LEVEL_1_SP;
         else if (level == 2) DESIRED_HEAT = HEAT_LEVEL_2_SP;
         else if (level == 3) DESIRED_HEAT = HEAT_LEVEL_3_SP;
@@ -421,8 +454,13 @@ void CheckSerialCommands() {
     } else if (cmd.startsWith("COOL:")) {
       int level = cmd.substring(5).toInt();
       if (level >= 0 && level <= 3) {
-        if (level == 0) DESIRED_COOL = FAN_OFF;
-        else if (level == 1) DESIRED_COOL = COOL_LEVEL_1_SP;
+        if (level == 0) {
+          DESIRED_COOL = FAN_OFF;
+
+          // enable cooldown
+          _cooldown_seconds = millis();
+          COOLDOWN_ACTIVE = true;
+        } else if (level == 1) DESIRED_COOL = COOL_LEVEL_1_SP;
         else if (level == 2) DESIRED_COOL = COOL_LEVEL_2_SP;
         else if (level == 3) DESIRED_COOL = COOL_LEVEL_3_SP;
         DESIRED_HEAT = HEAT_OFF;

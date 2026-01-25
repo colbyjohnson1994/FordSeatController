@@ -42,6 +42,11 @@ void loop() {
   CoolBtn.update();
   HeatBtn.update();
 
+  if ((millis() - _cooldown_seconds) > COOLDOWN_TIMER) {
+    if (COOLDOWN_ACTIVE)
+      COOLDOWN_ACTIVE = false;
+  }
+
   if ((millis() - _pwm_seconds) > PWM_INTERVAL) {
     // pwm interval has elapsed
     _pwm_seconds = millis();
