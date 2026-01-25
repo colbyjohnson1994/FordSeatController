@@ -154,9 +154,12 @@ void SetLEDOutputs() {
     digitalWrite(COOL3_LED, LOW);
   } else if (DESIRED_COOL == COOL_LEVEL_1_SP) {
     digitalWrite(COOL1_LED, HIGH);
+    digitalWrite(COOL2_LED, LOW);
+    digitalWrite(COOL3_LED, LOW);
   } else if (DESIRED_COOL == COOL_LEVEL_2_SP) {
     digitalWrite(COOL1_LED, HIGH);
     digitalWrite(COOL2_LED, HIGH);
+    digitalWrite(COOL3_LED, LOW);
   } else if (DESIRED_COOL == COOL_LEVEL_3_SP) {
     digitalWrite(COOL1_LED, HIGH);
     digitalWrite(COOL2_LED, HIGH);
@@ -169,9 +172,12 @@ void SetLEDOutputs() {
     digitalWrite(HEAT3_LED, LOW);
   } else if (DESIRED_HEAT == HEAT_LEVEL_1_SP) {
     digitalWrite(HEAT1_LED, HIGH);
+    digitalWrite(HEAT2_LED, LOW);
+    digitalWrite(HEAT3_LED, LOW);
   } else if (DESIRED_HEAT == HEAT_LEVEL_2_SP) {
     digitalWrite(HEAT1_LED, HIGH);
     digitalWrite(HEAT2_LED, HIGH);
+    digitalWrite(HEAT3_LED, LOW);
   } else if (DESIRED_HEAT == HEAT_LEVEL_3_SP) {
     digitalWrite(HEAT1_LED, HIGH);
     digitalWrite(HEAT2_LED, HIGH);
