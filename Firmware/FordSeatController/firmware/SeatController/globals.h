@@ -66,8 +66,8 @@
 
 #define SHUTDOWN_HT_OFF   70.0
 #define SHUTDOWN_HT_ON    65.0
-#define SHUTDOWN_LT_OFF   10.0
-#define SHUTDOWN_LT_ON    15.0
+#define SHUTDOWN_LT_OFF   -45.0
+#define SHUTDOWN_LT_ON    -40.0
 #define SHUTDOWN_FAN_PERC 50.0
 
 // Fan control constants
